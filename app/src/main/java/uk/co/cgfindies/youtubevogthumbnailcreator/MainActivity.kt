@@ -4,26 +4,38 @@ import android.Manifest
 import android.app.AlertDialog
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Rect
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.widget.Button
 import android.widget.ImageView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
+import androidx.core.graphics.drawable.toBitmap
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetectorOptions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.lang.IllegalStateException
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
+import kotlin.random.Random
 
 class MainActivity : AppCompatActivity() {
+    companion object Factory {
+        val rnd = Random.Default
+    }
+
     private val options = FaceDetectorOptions.Builder()
         .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
         .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
@@ -47,8 +59,10 @@ class MainActivity : AppCompatActivity() {
 
     private val detector = FaceDetection.getClient(options)
 
+    private var isProcessing = false
     private var highestSmileProbability = 0.0f
-    private var bestBitmap: Bitmap? = null
+    private var thumbnailTitle = ""
+    private var facecamPosition = Rect(56, 207, 321, 472)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -56,8 +70,15 @@ class MainActivity : AppCompatActivity() {
 
     }
 
-    fun openGalleryForVideo(_view: View) {
-        openGalleryForVideo()
+    fun openGalleryForVideo(view: View) {
+        if (isProcessing) {
+            isProcessing = false
+            (view as Button).text = getText(R.string.pick_video)
+        } else {
+            isProcessing = true
+            (view as Button).text = getText(R.string.stop_processing)
+            openGalleryForVideo()
+        }
     }
 
     private fun openGalleryForVideo() {
@@ -89,36 +110,31 @@ class MainActivity : AppCompatActivity() {
 
     private suspend fun processImages(uri: Uri) {
         highestSmileProbability = 0.0f
-        bestBitmap = null
 
         val metaRetriever = MediaMetadataRetriever()
         metaRetriever.setDataSource(this, uri)
 
         val duration = metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION) ?: return
-        val rotation = metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION) ?: "0"
+        val rotation = "0" // For some reason this comes out at 270 when MLKit is expecting 0 - metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION) ?: "0"
 
         val durationUs = duration.toLong() * 1000
         val rotationDegrees = rotation.toInt()
 
         Log.i("MAIN", "rotation $rotationDegrees")
         for (i in 1..durationUs step 1000000) {
+            if (!isProcessing) {
+                return
+            }
             val image = metaRetriever.getFrameAtTime(i) ?: continue
             processImage(image, rotationDegrees)
-            //image.recycle()
-            break
+            image.recycle()
         }
 
         metaRetriever.release()
-
-        val best = bestBitmap
-        if (best != null) {
-            showImage(best)
-        }
     }
 
     private suspend fun processImage(image: Bitmap, rotation: Int) {
         val inputImage = InputImage.fromBitmap(image, rotation)
-        showImage(inputImage.bitmapInternal)
 
         return suspendCoroutine { continuation ->
             detector.process(inputImage)
@@ -128,9 +144,10 @@ class MainActivity : AppCompatActivity() {
                     if (faces.count() == 1) {
                         val smileProb = faces[0]?.smilingProbability ?: 0.0f
                         Log.i("MAIN", "Got smiles? $smileProb")
-                        if (smileProb > highestSmileProbability) {
+                        if (isProcessing && smileProb > highestSmileProbability) {
+                            Log.i("MAIN", "New highest smile probability, showing the image")
                             highestSmileProbability = smileProb
-                            bestBitmap = image.copy(image.config, true)
+                            showImage(image.copy(image.config, true), faces[0].boundingBox)
                         }
                     }
                     continuation.resume(Unit)
@@ -142,10 +159,27 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showImage(image: Bitmap) {
+    private fun showImage(image: Bitmap, facePosition: Rect) {
+        val thumbnail = compileThumbnail(image, facePosition)
         runOnUiThread {
             val view: ImageView = findViewById(R.id.chosen_image)
-            view.setImageBitmap((image))
+            view.setImageBitmap(thumbnail)
         }
+    }
+
+    private fun compileThumbnail(image: Bitmap, facePosition: Rect): Bitmap {
+        val overlay = ResourcesCompat.getDrawable(resources, R.drawable.vlog_thumbnail_overlay, null)?.toBitmap()
+            ?: throw IllegalStateException("Overlay resource missing")
+
+        val thumbnail = Bitmap.createBitmap(overlay.copy(overlay.config, true))
+        val canvas = Canvas(thumbnail)
+        canvas.drawBitmap(image, facePosition, facecamPosition, null)
+
+        if (thumbnailTitle != "") {
+            val paint = Paint()
+            paint.setARGB(0, rnd.nextInt(0, 255), rnd.nextInt(0, 255), rnd.nextInt(0, 255))
+            canvas.drawText(thumbnailTitle, 0.0f, 0.0f, paint)
+        }
+        return thumbnail
     }
 }
