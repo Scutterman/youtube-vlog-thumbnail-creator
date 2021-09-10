@@ -192,10 +192,13 @@ class MainActivity : AppCompatActivity() {
             paint.typeface = Typeface.create("Impact",Typeface.BOLD)
             paint.textAlign = Paint.Align.CENTER
             paint.textSize = 100.0f
+
+            var xPosition = 600.0f
             var yPosition = 150.0f
 
             for (text in splitTitleTexts) {
-                canvas.drawText(text, 640.0f, yPosition, paint)
+                canvas.drawText(text, xPosition, yPosition, paint)
+                xPosition = 770.0f
                 yPosition += 150
             }
         }
