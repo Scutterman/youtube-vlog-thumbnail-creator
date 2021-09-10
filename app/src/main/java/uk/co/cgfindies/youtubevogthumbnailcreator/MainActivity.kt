@@ -211,7 +211,7 @@ class MainActivity : AppCompatActivity() {
                 break
             }
 
-            for (i in (TITLE_LINE_LENGTH - 1) downTo 0) {
+            for (i in (TITLE_LINE_LENGTH) downTo 0) {
                 if (remainingText[i] == ' ') {
                     splitText.add(remainingText.substring(0, i))
                     remainingText = remainingText.substring(i+1)
