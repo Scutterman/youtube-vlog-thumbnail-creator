@@ -13,6 +13,21 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center">
 
+        <EditText
+            android:id="@+id/thumbnail_title_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:layout_centerVertical="true"
+            android:autofillHints=""
+            android:background="#00000000"
+            android:textColor="#00000000"
+            android:cursorVisible="false"
+            android:ems="1"
+            android:hint="@string/thumbnail_title_text_hint"
+            android:textColorHint="#00000000"
+            android:inputType="text" />
+
         <ImageView
             android:id="@+id/chosen_image"
             android:layout_width="wrap_content"

@@ -2,14 +2,17 @@ package uk.co.cgfindies.youtubevogthumbnailcreator
 
 import android.Manifest
 import android.app.AlertDialog
+import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.*
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Bundle
+import android.text.Editable
 import android.util.Log
-import android.view.View
+import android.view.inputmethod.InputMethodManager
 import android.widget.Button
+import android.widget.EditText
 import android.widget.ImageView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -17,13 +20,13 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.drawable.toBitmap
+import androidx.core.widget.doAfterTextChanged
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetectorOptions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.lang.IllegalStateException
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 import kotlin.random.Random
@@ -71,6 +74,19 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         findViewById<Button>(R.id.btn_pick_video).setOnClickListener {
             pickVideo()
+        }
+
+        findViewById<ImageView>(R.id.chosen_image).setOnClickListener {
+            Log.i("MAIN", "CLICKED!")
+            val titleTextBox = findViewById<EditText>(R.id.thumbnail_title_text)
+            titleTextBox.requestFocus()
+            val imm: InputMethodManager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(titleTextBox, InputMethodManager.SHOW_IMPLICIT)
+        }
+
+        findViewById<EditText>(R.id.thumbnail_title_text).doAfterTextChanged { text: Editable? ->
+            thumbnailTitle = text?.toString() ?: ""
+            showImage()
         }
 
         showImage()
