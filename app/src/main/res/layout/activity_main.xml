@@ -10,8 +10,7 @@
 
     <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center">
+        android:layout_height="wrap_content">
 
         <EditText
             android:id="@+id/thumbnail_title_text"
@@ -32,6 +31,8 @@
             android:id="@+id/chosen_image"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:scaleType="fitXY"
+            android:adjustViewBounds="true"
             android:contentDescription="@string/selected_image_description"
             />
 
@@ -39,8 +40,9 @@
             android:id="@+id/btn_pick_video"
             android:layout_width="wrap_content"
             android:layout_height="48dp"
-            android:text="@string/pick_video"
-            />
+            android:layout_below="@+id/chosen_image"
+            android:layout_centerHorizontal="true"
+            android:text="@string/pick_video" />
 
     </RelativeLayout>
 </ScrollView>
