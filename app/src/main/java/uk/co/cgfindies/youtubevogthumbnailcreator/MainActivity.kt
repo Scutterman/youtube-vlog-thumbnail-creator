@@ -189,6 +189,7 @@ class MainActivity : AppCompatActivity() {
             val paint = Paint(); val r = rnd.nextInt(0, 255); val g = rnd.nextInt(0, 255); val b = rnd.nextInt(0, 255)
             paint.setARGB(255, r, g, b)
             paint.setShadowLayer(5.0f, 10.0f, 10.0f, Color.BLACK)
+            paint.typeface = Typeface.create("Impact",Typeface.BOLD)
             paint.textAlign = Paint.Align.CENTER
             paint.textSize = 100.0f
             var yPosition = 150.0f
@@ -202,7 +203,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun splitTextToFitOnCanvas(text: String): List<String> {
-        var remainingText = text
+        var remainingText = text.uppercase()
         val splitText = mutableListOf<String>()
 
         while (remainingText.isNotEmpty()) {
