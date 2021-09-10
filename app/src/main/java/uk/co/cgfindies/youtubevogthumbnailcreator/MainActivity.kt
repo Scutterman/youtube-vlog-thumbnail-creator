@@ -3,10 +3,7 @@ package uk.co.cgfindies.youtubevogthumbnailcreator
 import android.Manifest
 import android.app.AlertDialog
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.Rect
+import android.graphics.*
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Bundle
@@ -36,6 +33,8 @@ class MainActivity : AppCompatActivity() {
         val rnd = Random.Default
     }
 
+    private val TITLE_LINE_LENGTH = 24
+
     private val options = FaceDetectorOptions.Builder()
         .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
         .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
@@ -61,13 +60,12 @@ class MainActivity : AppCompatActivity() {
 
     private var isProcessing = false
     private var highestSmileProbability = 0.0f
-    private var thumbnailTitle = ""
+    private var thumbnailTitle = "13 Minutes of Incoherent Rambling"
     private var facecamPosition = Rect(56, 207, 321, 472)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
     }
 
     override fun onDestroy() {
@@ -184,11 +182,46 @@ class MainActivity : AppCompatActivity() {
         val canvas = Canvas(thumbnail)
         canvas.drawBitmap(image, facePosition, facecamPosition, null)
 
-        if (thumbnailTitle != "") {
-            val paint = Paint()
-            paint.setARGB(0, rnd.nextInt(0, 255), rnd.nextInt(0, 255), rnd.nextInt(0, 255))
-            canvas.drawText(thumbnailTitle, 0.0f, 0.0f, paint)
+        if (thumbnailTitle.isNotEmpty()) {
+            val splitTitleTexts = splitTextToFitOnCanvas(thumbnailTitle)
+            val paint = Paint(); val r = rnd.nextInt(0, 255); val g = rnd.nextInt(0, 255); val b = rnd.nextInt(0, 255)
+            paint.setARGB(255, r, g, b)
+            paint.setShadowLayer(5.0f, 10.0f, 10.0f, Color.BLACK)
+            paint.textAlign = Paint.Align.CENTER
+            paint.textSize = 100.0f
+            var yPosition = 150.0f
+
+            for (text in splitTitleTexts) {
+                canvas.drawText(text, 640.0f, yPosition, paint)
+                yPosition += 150
+            }
         }
         return thumbnail
+    }
+
+    private fun splitTextToFitOnCanvas(text: String): List<String> {
+        var remainingText = text
+        val splitText = mutableListOf<String>()
+
+        while (remainingText.isNotEmpty()) {
+            if (remainingText.length <= TITLE_LINE_LENGTH) {
+                splitText.add((remainingText))
+                break
+            }
+
+            for (i in (TITLE_LINE_LENGTH - 1) downTo 0) {
+                if (remainingText[i] == ' ') {
+                    splitText.add(remainingText.substring(0, i))
+                    remainingText = remainingText.substring(i+1)
+                    break
+                }
+
+                if (i == 0) {
+                    splitText.add(remainingText.substring(0, TITLE_LINE_LENGTH - 1) + "-")
+                    remainingText = remainingText.substring(TITLE_LINE_LENGTH-1)
+                }
+            }
+        }
+        return splitText
     }
 }
