@@ -62,13 +62,18 @@ class MainActivity : AppCompatActivity() {
     private var highestSmileProbability = 0.0f
     private var thumbnailTitle = "13 Minutes of Incoherent Rambling"
     private var facecamPosition = Rect(56, 207, 321, 472)
+    private var currentFace = Bitmap.createBitmap(265, 265, Bitmap.Config.RGB_565)
+    private var currentFacePosition = Rect(0,0,0,0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         setContentView(R.layout.activity_main)
         findViewById<Button>(R.id.btn_pick_video).setOnClickListener {
             pickVideo()
         }
+
+        showImage()
     }
 
     override fun onDestroy() {
@@ -157,7 +162,9 @@ class MainActivity : AppCompatActivity() {
                         if (isProcessing && smileProb > highestSmileProbability) {
                             Log.i("MAIN", "New highest smile probability, showing the image")
                             highestSmileProbability = smileProb
-                            showImage(image.copy(image.config, true), faces[0].boundingBox)
+                            currentFace = image.copy(image.config, true)
+                            currentFacePosition = faces[0].boundingBox
+                            showImage()
                         }
                     }
                     continuation.resume(Unit)
@@ -169,21 +176,21 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showImage(image: Bitmap, facePosition: Rect) {
-        val thumbnail = compileThumbnail(image, facePosition)
+    private fun showImage() {
+        val thumbnail = compileThumbnail()
         runOnUiThread {
             val view: ImageView = findViewById(R.id.chosen_image)
             view.setImageBitmap(thumbnail)
         }
     }
 
-    private fun compileThumbnail(image: Bitmap, facePosition: Rect): Bitmap {
+    private fun compileThumbnail(): Bitmap {
         val overlay = ResourcesCompat.getDrawable(resources, R.drawable.vlog_thumbnail_overlay, null)?.toBitmap()
             ?: throw IllegalStateException("Overlay resource missing")
 
         val thumbnail = Bitmap.createBitmap(overlay.copy(overlay.config, true))
         val canvas = Canvas(thumbnail)
-        canvas.drawBitmap(image, facePosition, facecamPosition, null)
+        canvas.drawBitmap(currentFace, currentFacePosition, facecamPosition, null)
 
         if (thumbnailTitle.isNotEmpty()) {
             val splitTitleTexts = splitTextToFitOnCanvas(thumbnailTitle)
@@ -199,17 +206,16 @@ class MainActivity : AppCompatActivity() {
             for (i in splitTitleTexts.indices) {
                 val text = splitTitleTexts[i]
 
-                if (i == 0) {
+                yPosition += if (i == 0) {
                     canvas.save()
                     canvas.rotate(-6.5f)
                     canvas.drawText(text, 600.0f, yPosition, paint)
                     canvas.restore()
-                    yPosition += 100
+                    100
                 } else {
                     canvas.drawText(text, 770.0f, yPosition, paint)
-                    yPosition += 150
+                    150
                 }
-
             }
         }
         return thumbnail
