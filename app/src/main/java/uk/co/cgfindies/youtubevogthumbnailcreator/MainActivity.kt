@@ -28,12 +28,12 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 import kotlin.random.Random
 
+const val TITLE_LINE_LENGTH = 13
+
 class MainActivity : AppCompatActivity() {
     companion object Factory {
         val rnd = Random.Default
     }
-
-    private val TITLE_LINE_LENGTH = 24
 
     private val options = FaceDetectorOptions.Builder()
         .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
