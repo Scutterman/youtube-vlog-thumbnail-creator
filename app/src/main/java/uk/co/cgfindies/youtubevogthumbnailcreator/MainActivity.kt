@@ -66,6 +66,9 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        findViewById<Button>(R.id.btn_pick_video).setOnClickListener {
+            pickVideo()
+        }
     }
 
     override fun onDestroy() {
@@ -81,9 +84,7 @@ class MainActivity : AppCompatActivity() {
         button.text = getText(newStringId)
     }
 
-    fun openGalleryForVideo(view: View) {
-        assert(view.id == R.id.btn_pick_video)
-
+    private fun pickVideo() {
         setIsProcessing(!isProcessing)
         if (isProcessing) {
             openGalleryForVideo()
