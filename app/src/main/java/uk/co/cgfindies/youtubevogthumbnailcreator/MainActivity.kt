@@ -92,7 +92,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun openGalleryForVideo() {
         if (!canRead()) {
-            getPermission(Manifest.permission.READ_EXTERNAL_STORAGE, getString(R.string.reuest_external_read_permission))
+            getPermission(Manifest.permission.READ_EXTERNAL_STORAGE, getString(R.string.request_external_read_permission))
             return
         }
 
