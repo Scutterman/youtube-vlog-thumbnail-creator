@@ -70,13 +70,22 @@ class MainActivity : AppCompatActivity() {
 
     }
 
-    fun openGalleryForVideo(view: View) {
+    override fun onDestroy() {
+        super.onDestroy()
+        setIsProcessing(false)
+    }
+
+    private fun setIsProcessing(newValue: Boolean) {
+        Log.i("MAIN", "setting is processing to $newValue")
+        val button: Button = findViewById(R.id.btn_pick_video)
+        isProcessing = newValue
+        val newStringId = if (isProcessing) R.string.stop_processing else R.string.pick_video
+        button.text = getText(newStringId)
+    }
+
+    fun openGalleryForVideo(_view: View) {
+        setIsProcessing(!isProcessing)
         if (isProcessing) {
-            isProcessing = false
-            (view as Button).text = getText(R.string.pick_video)
-        } else {
-            isProcessing = true
-            (view as Button).text = getText(R.string.stop_processing)
             openGalleryForVideo()
         }
     }
