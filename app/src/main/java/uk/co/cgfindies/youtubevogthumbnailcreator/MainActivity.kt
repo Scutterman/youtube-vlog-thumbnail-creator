@@ -81,7 +81,9 @@ class MainActivity : AppCompatActivity() {
         button.text = getText(newStringId)
     }
 
-    fun openGalleryForVideo(_view: View) {
+    fun openGalleryForVideo(view: View) {
+        assert(view.id == R.id.btn_pick_video)
+
         setIsProcessing(!isProcessing)
         if (isProcessing) {
             openGalleryForVideo()
