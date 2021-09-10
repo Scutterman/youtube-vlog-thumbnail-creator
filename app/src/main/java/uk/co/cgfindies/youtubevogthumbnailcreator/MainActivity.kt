@@ -193,13 +193,22 @@ class MainActivity : AppCompatActivity() {
             paint.textAlign = Paint.Align.CENTER
             paint.textSize = 100.0f
 
-            var xPosition = 600.0f
-            var yPosition = 150.0f
+            var yPosition = 200.0f
 
-            for (text in splitTitleTexts) {
-                canvas.drawText(text, xPosition, yPosition, paint)
-                xPosition = 770.0f
-                yPosition += 150
+            for (i in splitTitleTexts.indices) {
+                val text = splitTitleTexts[i]
+
+                if (i == 0) {
+                    canvas.save()
+                    canvas.rotate(-6.5f)
+                    canvas.drawText(text, 600.0f, yPosition, paint)
+                    canvas.restore()
+                    yPosition += 100
+                } else {
+                    canvas.drawText(text, 770.0f, yPosition, paint)
+                    yPosition += 150
+                }
+
             }
         }
         return thumbnail
