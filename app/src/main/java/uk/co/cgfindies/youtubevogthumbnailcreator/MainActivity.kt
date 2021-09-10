@@ -2,14 +2,20 @@ package uk.co.cgfindies.youtubevogthumbnailcreator
 
 import android.Manifest
 import android.app.AlertDialog
+import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.*
+import android.graphics.drawable.BitmapDrawable
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.Environment
+import android.provider.MediaStore
 import android.text.Editable
 import android.util.Log
+import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
@@ -21,12 +27,14 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.widget.doAfterTextChanged
+import com.google.android.material.snackbar.Snackbar
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetectorOptions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import java.io.OutputStream
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 import kotlin.random.Random
@@ -55,7 +63,11 @@ class MainActivity : AppCompatActivity() {
 
     private val requestReadPermissionContract = registerForActivityResult(ActivityResultContracts.RequestPermission()) { result ->
         if (result) {
-            openGalleryForVideo()
+            if (lastPermissionRequest == Manifest.permission.READ_EXTERNAL_STORAGE) {
+                openGalleryForVideo()
+            } else if (lastPermissionRequest == Manifest.permission.WRITE_EXTERNAL_STORAGE) {
+                saveImage()
+            }
         }
     }
 
@@ -63,10 +75,12 @@ class MainActivity : AppCompatActivity() {
 
     private var isProcessing = false
     private var highestSmileProbability = 0.0f
-    private var thumbnailTitle = "13 Minutes of Incoherent Rambling"
+    private var thumbnailTitle = ""
     private var facecamPosition = Rect(56, 207, 321, 472)
     private var currentFace = Bitmap.createBitmap(265, 265, Bitmap.Config.RGB_565)
     private var currentFacePosition = Rect(0,0,0,0)
+    private var lastPermissionRequest = ""
+    private var thumbnailModifiedSinceSave = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,6 +88,10 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         findViewById<Button>(R.id.btn_pick_video).setOnClickListener {
             pickVideo()
+        }
+
+        findViewById<Button>(R.id.btn_save_thumbnail).setOnClickListener {
+            saveImage()
         }
 
         findViewById<ImageView>(R.id.chosen_image).setOnClickListener {
@@ -90,6 +108,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         showImage()
+        setThumbnailModifiedSinceSave(false)
     }
 
     override fun onDestroy() {
@@ -105,6 +124,11 @@ class MainActivity : AppCompatActivity() {
         button.text = getText(newStringId)
     }
 
+    private fun setThumbnailModifiedSinceSave(newValue: Boolean) {
+        thumbnailModifiedSinceSave = newValue
+        findViewById<Button>(R.id.btn_save_thumbnail).isEnabled = thumbnailModifiedSinceSave
+    }
+
     private fun pickVideo() {
         setIsProcessing(!isProcessing)
         if (isProcessing) {
@@ -113,7 +137,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun openGalleryForVideo() {
-        if (!canRead()) {
+        if (!hasPermission(Manifest.permission.READ_EXTERNAL_STORAGE)) {
             getPermission(Manifest.permission.READ_EXTERNAL_STORAGE, getString(R.string.request_external_read_permission))
             return
         }
@@ -121,11 +145,55 @@ class MainActivity : AppCompatActivity() {
         getVideoContract.launch("video/*")
     }
 
-    private fun canRead(): Boolean {
-        return ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
+    private fun saveImage() {
+        if (!hasPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+            getPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE, getString(R.string.request_external_read_permission))
+            return
+        }
+
+        val image = findViewById<ImageView>(R.id.chosen_image)
+        val bitmap = (image.drawable as BitmapDrawable).bitmap
+
+        val filename = thumbnailTitle
+        var fos: OutputStream?
+        var imageUri: Uri?
+        val contentValues = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+            put(MediaStore.MediaColumns.MIME_TYPE, "image/jpg")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES)
+                put(MediaStore.Video.Media.IS_PENDING, 1)
+            }
+        }
+
+        //use application context to get contentResolver
+        val contentResolver = application.contentResolver
+
+        contentResolver.also { resolver ->
+            imageUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+            fos = imageUri?.let { resolver.openOutputStream(it) }
+        }
+
+        fos?.use { bitmap.compress(Bitmap.CompressFormat.JPEG, 70, it) }
+
+        if (imageUri != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            contentValues.clear()
+            contentValues.put(MediaStore.Video.Media.IS_PENDING, 0)
+            contentResolver.update(imageUri!!, contentValues, null, null)
+        }
+
+        setThumbnailModifiedSinceSave(false)
+        Log.i("MAIN", "Saved successfully")
+        val view = findViewById<View>(android.R.id.content)
+        Snackbar.make(view, R.string.thumbnail_saved, Snackbar.LENGTH_LONG).show()
+    }
+
+    private fun hasPermission(permission: String): Boolean {
+        return ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun getPermission(permission: String, message: String) {
+        lastPermissionRequest = permission
         if (ActivityCompat.shouldShowRequestPermissionRationale(this, permission)) {
             val alertBuilder = AlertDialog.Builder(this)
             alertBuilder.setCancelable(true)
@@ -204,6 +272,7 @@ class MainActivity : AppCompatActivity() {
         val overlay = ResourcesCompat.getDrawable(resources, R.drawable.vlog_thumbnail_overlay, null)?.toBitmap()
             ?: throw IllegalStateException("Overlay resource missing")
 
+        setThumbnailModifiedSinceSave(true)
         val thumbnail = Bitmap.createBitmap(overlay.copy(overlay.config, true))
         val canvas = Canvas(thumbnail)
         canvas.drawBitmap(currentFace, currentFacePosition, facecamPosition, null)

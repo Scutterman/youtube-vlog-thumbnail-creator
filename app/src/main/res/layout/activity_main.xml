@@ -36,13 +36,26 @@
             android:contentDescription="@string/selected_image_description"
             />
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_horizontal"
+            android:layout_below="@+id/chosen_image"
+            >
         <Button
             android:id="@+id/btn_pick_video"
             android:layout_width="wrap_content"
-            android:layout_height="48dp"
-            android:layout_below="@+id/chosen_image"
-            android:layout_centerHorizontal="true"
+            android:layout_height="60dp"
+            android:layout_marginHorizontal="25dp"
             android:text="@string/pick_video" />
+
+        <Button
+            android:id="@+id/btn_save_thumbnail"
+            android:layout_width="wrap_content"
+            android:layout_height="60dp"
+            android:text="@string/save_thumbnail" />
+        </LinearLayout>
 
     </RelativeLayout>
 </ScrollView>

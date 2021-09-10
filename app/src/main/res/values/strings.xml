@@ -1,8 +1,10 @@
 <resources>
     <string name="app_name">Youtube Vog Thumbnail Creator</string>
-    <string name="pick_video">Pick Video</string>
+    <string name="pick_video">Pick\nVideo</string>
     <string name="selected_image_description">This box will contain the chosen image once a video has been processed. Tap to set the title text</string>
     <string name="request_external_read_permission">We need to load the video you select in order to turn it into a thumbnail image</string>
-    <string name="stop_processing">Stop Processing</string>
+    <string name="stop_processing">Stop\nProcessing</string>
     <string name="thumbnail_title_text_hint">Tap the preview image to set the title text</string>
+    <string name="save_thumbnail">Save\nThumbnail</string>
+    <string name="thumbnail_saved">Thumbnail Saved!</string>
 </resources>
