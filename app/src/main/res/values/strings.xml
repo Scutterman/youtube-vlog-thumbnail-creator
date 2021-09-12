@@ -7,4 +7,5 @@
     <string name="thumbnail_title_text_hint">Tap the preview image to set the title text</string>
     <string name="save_thumbnail">Save\nThumbnail</string>
     <string name="thumbnail_saved">Thumbnail Saved!</string>
+    <string name="no_video_track_found">Could not process the video</string>
 </resources>

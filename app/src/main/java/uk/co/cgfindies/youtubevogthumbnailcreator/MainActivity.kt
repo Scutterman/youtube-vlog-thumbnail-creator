@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.*
 import android.graphics.drawable.BitmapDrawable
+import android.media.MediaExtractor
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
@@ -34,6 +35,7 @@ import com.google.mlkit.vision.face.FaceDetectorOptions
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.OutputStream
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
@@ -77,7 +79,7 @@ class MainActivity : AppCompatActivity() {
     private var highestSmileProbability = 0.0f
     private var thumbnailTitle = ""
     private var facecamPosition = Rect(56, 207, 321, 472)
-    private var currentFace = Bitmap.createBitmap(265, 265, Bitmap.Config.RGB_565)
+    private var currentFace: Bitmap = Bitmap.createBitmap(265, 265, Bitmap.Config.RGB_565)
     private var currentFacePosition = Rect(0,0,0,0)
     private var lastPermissionRequest = ""
     private var thumbnailModifiedSinceSave = false
@@ -126,7 +128,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun setThumbnailModifiedSinceSave(newValue: Boolean) {
         thumbnailModifiedSinceSave = newValue
-        findViewById<Button>(R.id.btn_save_thumbnail).isEnabled = thumbnailModifiedSinceSave
+
+        runOnUiThread {
+            findViewById<Button>(R.id.btn_save_thumbnail).isEnabled = thumbnailModifiedSinceSave
+        }
     }
 
     private fun pickVideo() {
@@ -184,8 +189,12 @@ class MainActivity : AppCompatActivity() {
 
         setThumbnailModifiedSinceSave(false)
         Log.i("MAIN", "Saved successfully")
+        showMessage(R.string.thumbnail_saved)
+    }
+
+    private fun showMessage(messageId: Int) {
         val view = findViewById<View>(android.R.id.content)
-        Snackbar.make(view, R.string.thumbnail_saved, Snackbar.LENGTH_LONG).show()
+        Snackbar.make(view, messageId, Snackbar.LENGTH_LONG).show()
     }
 
     private fun hasPermission(permission: String): Boolean {
@@ -210,6 +219,13 @@ class MainActivity : AppCompatActivity() {
     private suspend fun processImages(uri: Uri) {
         highestSmileProbability = 0.0f
 
+        val test = true
+
+        if (test) {
+            processImages2(uri)
+            return
+        }
+
         val metaRetriever = MediaMetadataRetriever()
         metaRetriever.setDataSource(this, uri)
 
@@ -224,16 +240,64 @@ class MainActivity : AppCompatActivity() {
             if (!isProcessing) {
                 return
             }
+
+            Log.i("MAIN", "Getting image")
             val image = metaRetriever.getFrameAtTime(i) ?: continue
-            processImage(image, rotationDegrees)
+            Log.i("MAIN", "Converting to input")
+            val inputImage = InputImage.fromBitmap(image, rotationDegrees)
+            Log.i("MAIN", "Processing start")
+            val found = processImage(inputImage)
+            Log.i("MAIN", "Processing end")
+            if (found) {
+                Log.i("MAIN", "Displaying")
+                currentFace = image.copy(image.config, true)
+                showImage()
+            }
+            Log.i("MAIN", "Recycling")
             image.recycle()
+            Log.i("MAIN", "Done")
         }
 
         metaRetriever.release()
     }
 
-    private suspend fun processImage(image: Bitmap, rotation: Int) {
-        val inputImage = InputImage.fromBitmap(image, rotation)
+    private suspend fun processImages2(uri: Uri) {
+
+        val extractor = MediaExtractor()
+        val that = this
+        @Suppress("BlockingMethodInNonBlockingContext")
+        withContext(Dispatchers.Default) { extractor.setDataSource(that, uri, null) }
+
+        val processor = VideoProcessor(extractor)
+        var firstRun = true
+
+        while (processor.canProcessFurther() && isProcessing) {
+            Log.i("MAIN", "Getting image")
+            val byteArray = processor.next() ?: continue
+
+            Log.i("MAIN", "Converting to input")
+            val inputImage = InputImage.fromByteArray(byteArray, processor.getWidth(), processor.getHeight(), 0, ImageFormat.NV21)
+            Log.i("MAIN", "Processing start")
+            val found = processImage(inputImage)
+            Log.i("MAIN", "Processing end")
+            if (found || firstRun) {
+                // firstRun = false
+                Log.i("MAIN", "Displaying")
+                val tmp = BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size)
+                if (tmp == null) {
+                    Log.e("MAIN", "Bitmap could not be decoded! Size: ${ byteArray.size }")
+                } else {
+                    currentFace = tmp
+                }
+                showImage()
+            }
+        }
+
+        processor.close()
+    }
+
+    private suspend fun processImage(inputImage: InputImage): Boolean {
+        var faceFound = false
 
         return suspendCoroutine { continuation ->
             detector.process(inputImage)
@@ -246,16 +310,15 @@ class MainActivity : AppCompatActivity() {
                         if (isProcessing && smileProb > highestSmileProbability) {
                             Log.i("MAIN", "New highest smile probability, showing the image")
                             highestSmileProbability = smileProb
-                            currentFace = image.copy(image.config, true)
                             currentFacePosition = faces[0].boundingBox
-                            showImage()
+                            faceFound = true
                         }
                     }
-                    continuation.resume(Unit)
+                    continuation.resume(faceFound)
                 }
                 .addOnFailureListener { e ->
                     Log.e("MAIN", "Failed to process face", e)
-                    continuation.resume(Unit)
+                    continuation.resume(faceFound)
                 }
         }
     }
