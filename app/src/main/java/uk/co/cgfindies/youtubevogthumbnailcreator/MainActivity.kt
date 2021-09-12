@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.*
 import android.graphics.drawable.BitmapDrawable
+import android.media.Image
 import android.media.MediaExtractor
 import android.media.MediaMetadataRetriever
 import android.net.Uri
@@ -36,9 +37,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
 import java.io.OutputStream
+import java.nio.ByteBuffer
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
+import kotlin.math.truncate
 import kotlin.random.Random
 
 const val TITLE_LINE_LENGTH = 13
@@ -273,24 +277,40 @@ class MainActivity : AppCompatActivity() {
 
         while (processor.canProcessFurther() && isProcessing) {
             Log.i("MAIN", "Getting image")
-            val byteArray = processor.next() ?: continue
+            val bufferedImage = processor.next() ?: continue
 
-            Log.i("MAIN", "Converting to input")
-            val inputImage = InputImage.fromByteArray(byteArray, processor.getWidth(), processor.getHeight(), 0, ImageFormat.NV21)
+            Log.i("MAIN", "Converting image")
+            val inputImage = InputImage.fromMediaImage(bufferedImage.image, 0)
+
             Log.i("MAIN", "Processing start")
             val found = processImage(inputImage)
+
             Log.i("MAIN", "Processing end")
             if (found || firstRun) {
                 // firstRun = false
                 Log.i("MAIN", "Displaying")
-                val tmp = BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size)
+                val y = bufferedImage.image.planes[0].buffer.capacity()
+                val u = bufferedImage.image.planes[1].buffer.capacity()
+                val v = bufferedImage.image.planes[2].buffer.capacity()
+                val format = bufferedImage.image.format
+                val format2 = inputImage.format
+                Log.e("MAIN", "Image Info: $y, $u, $v, $format, $format2")
+
+                val pixels = yuv420888ToSRGB(bufferedImage.image)
+                // val tmp = getBitmap(bufferedImage.image)
+
+                val tmp = Bitmap.createBitmap(pixels, bufferedImage.image.width, bufferedImage.image.height, Bitmap.Config.ARGB_8888)
+
                 if (tmp == null) {
-                    Log.e("MAIN", "Bitmap could not be decoded! Size: ${ byteArray.size }")
+                    Log.e("MAIN", "Bitmap could not be decoded from input image!")
                 } else {
+                    Log.i("MAIN", "Bitmap created: ${ tmp.config }, ${ tmp.width }, ${ tmp.height }")
                     currentFace = tmp
                 }
                 showImage()
             }
+            bufferedImage.done()
+            break
         }
 
         processor.close()
@@ -328,6 +348,7 @@ class MainActivity : AppCompatActivity() {
         runOnUiThread {
             val view: ImageView = findViewById(R.id.chosen_image)
             view.setImageBitmap(thumbnail)
+            Log.i("MAIN", "Image displayed")
         }
     }
 
@@ -393,5 +414,67 @@ class MainActivity : AppCompatActivity() {
             }
         }
         return splitText
+    }
+
+    private fun getBitmap(image: Image): Bitmap? {
+        assert (image.format == ImageFormat.YUV_420_888)
+        val planeCount = image.planes.size
+        var bufferSize = 0
+        for (i in 0 until planeCount) {
+            bufferSize += image.planes[i].buffer.capacity()
+        }
+
+        val ib = ByteBuffer.allocate(bufferSize)
+
+        for (i in 0 until planeCount) {
+            ib.put(image.planes[i].buffer)
+        }
+
+        try {
+            val yuvImage = YuvImage(ib.array(), ImageFormat.YUV_420_888, image.width, image.height, null)
+            val stream = ByteArrayOutputStream()
+            yuvImage.compressToJpeg(Rect(0, 0, image.width, image.height), 80, stream)
+            val bmp = BitmapFactory.decodeByteArray(stream.toByteArray(), 0, stream.size())
+            stream.close()
+            return bmp
+        } catch (e: Exception) {
+            Log.e("VisionProcessorBase", "Error: " + e.message)
+        }
+        return null
+    }
+
+    private fun yuv420888ToSRGB(image: Image): IntArray {
+        assert (image.format == ImageFormat.YUV_420_888)
+
+        val pixels = image.width * image.height
+        val out = IntArray(pixels)
+
+        val width = image.width
+        val height = image.height
+        val y = image.planes[0].buffer
+        val u = image.planes[1].buffer
+        val v = image.planes[2].buffer
+        var pixelChannelIndex = 0
+
+        for (row in 0 until height) {
+            for (col in 0 until width) {
+                val yy = y[(row * width) + 1]
+                val uu = u[((row / 2) * (width / 2)) + (col / 2)]
+                val vv = v[((row / 2) * (width / 2)) + (col / 2)]
+
+                val r  = clampToRGB(1.164 * (yy - 16) + 1.596 * (vv - 128))
+                val g  = clampToRGB(1.164 * (yy - 16) - 0.813 * (vv - 128) - 0.391 * (uu - 128))
+                val b  = clampToRGB(1.164 * (yy - 16) + 2.018 * (uu - 128))
+
+                out[pixelChannelIndex++] = Color.rgb(r, g, b)
+            }
+        }
+
+        return out
+    }
+
+    private fun clampToRGB(input: Double): Int {
+        val inputInt = truncate(input).toInt()
+        return if (inputInt < 0) 0 else if (inputInt > 255) 255 else inputInt
     }
 }

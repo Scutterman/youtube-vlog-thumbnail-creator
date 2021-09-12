@@ -18,7 +18,7 @@ class VideoProcessor(private val extractor: MediaExtractor) : MediaCodec.Callbac
     private var width = -1
     private var height = -1
 
-    private var waitingForImage: Continuation<ByteArray?>? = null
+    private var waitingForImage: Continuation<BufferedImage?>? = null
 
     init {
         var tempDecoder: MediaCodec? = null
@@ -52,7 +52,7 @@ class VideoProcessor(private val extractor: MediaExtractor) : MediaCodec.Callbac
         decoder.start()
     }
 
-    suspend fun next(): ByteArray? {
+    suspend fun next(): BufferedImage? {
         if (isEOS) {
             return null
         }
@@ -70,14 +70,6 @@ class VideoProcessor(private val extractor: MediaExtractor) : MediaCodec.Callbac
 
     fun canProcessFurther(): Boolean {
         return !isEOS
-    }
-
-    fun getWidth(): Int {
-        return width
-    }
-
-    fun getHeight(): Int {
-        return height
     }
 
     override fun onInputBufferAvailable(p0: MediaCodec, inIndex: Int) {
@@ -117,10 +109,12 @@ class VideoProcessor(private val extractor: MediaExtractor) : MediaCodec.Callbac
             val image = p0.getOutputImage(outIndex)
             if (image != null) {
                 Log.i(TAG, "Acquired image")
-                waitingForImage?.resume(convertYUV420888ToNV21(image))
+                waitingForImage?.resume(BufferedImage(image) {
+                    decoder.releaseOutputBuffer(outIndex, false)
+                })
+
                 waitingForImage = null
             }
-            decoder.releaseOutputBuffer(outIndex, false)
         }
     }
 
@@ -212,5 +206,12 @@ class VideoProcessor(private val extractor: MediaExtractor) : MediaCodec.Callbac
         readOnlyCopy.flip()
         clone.put(readOnlyCopy)
         return clone
+    }
+
+    class BufferedImage(val image: Image, private val doneWithImage: () -> Unit) {
+        fun done() {
+            image.close()
+            doneWithImage()
+        }
     }
 }
