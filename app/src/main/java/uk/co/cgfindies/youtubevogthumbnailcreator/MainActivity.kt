@@ -40,6 +40,7 @@ import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.OutputStream
 import java.nio.ByteBuffer
+import java.util.*
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 import kotlin.math.truncate
@@ -296,7 +297,8 @@ class MainActivity : AppCompatActivity() {
                 val format2 = inputImage.format
                 Log.e("MAIN", "Image Info: $y, $u, $v, $format, $format2")
 
-                val pixels = yuv420888ToSRGB(bufferedImage.image)
+                val pixels = yuv420888ToSRGB2(bufferedImage.image)
+                Log.e("MAIN", "Pixels received ${ pixels.size } ${ pixels[pixels.size - 1].toUInt() } ${ pixels[pixels.size - 10].toUInt() } ${ pixels[pixels.size - 100].toUInt() } ")
                 // val tmp = getBitmap(bufferedImage.image)
 
                 val tmp = Bitmap.createBitmap(pixels, bufferedImage.image.width, bufferedImage.image.height, Bitmap.Config.ARGB_8888)
@@ -305,6 +307,7 @@ class MainActivity : AppCompatActivity() {
                     Log.e("MAIN", "Bitmap could not be decoded from input image!")
                 } else {
                     Log.i("MAIN", "Bitmap created: ${ tmp.config }, ${ tmp.width }, ${ tmp.height }")
+                    saveDebug(tmp)
                     currentFace = tmp
                 }
                 showImage()
@@ -473,8 +476,101 @@ class MainActivity : AppCompatActivity() {
         return out
     }
 
+    private fun yuv420888ToSRGB2(image: Image): IntArray {
+        assert (image.format == ImageFormat.YUV_420_888)
+
+        val pixels = image.width * image.height
+        val out = IntArray(pixels)
+
+        val width = image.width
+        val height = image.height
+        Log.e("MAIN", """
+            ${ image.planes[0].pixelStride } 
+            ${ image.planes[0].rowStride } 
+            ${ image.planes[1].pixelStride } 
+            ${ image.planes[1].rowStride } 
+            ${ image.planes[2].pixelStride } 
+            ${ image.planes[2].rowStride } 
+        """)
+        val y = image.planes[0].buffer
+        val u = image.planes[1].buffer
+        val v = image.planes[2].buffer
+
+        /*
+        From RGB:
+            Y' = 0.299*R + 0.587*G + 0.114B
+            U = 0.492 * (B - Y')
+            V = 0.877 * (R - Y')
+
+        To RGB
+            R = (V / 0.877) + Y'
+            B = (U / 0.492) + Y'
+            G = (Y' - (0.299 * R) - (0.114 * B)) / 0.587
+         */
+
+        for (pixel in 0 until pixels step 2) {
+            val halfPixel = pixel / 2
+            // TODO:: U and V have one element too few.
+            if (halfPixel >= u.capacity() || halfPixel >= v.capacity()) {
+                break
+            }
+            val yy = y[pixel]
+            val uu = u[halfPixel]
+            val vv = v[halfPixel]
+
+            val r  = clampToRGB(yy + (vv / 0.877))
+            val b  = clampToRGB(yy + (uu / 0.492))
+            val g  = clampToRGB((yy - (0.299 * r) - (0.114 * b)) / 0.587)
+
+            out[pixel] = Color.rgb(r, g, b)
+
+            val yy2 = y[pixel+1]
+            val r2  = clampToRGB(yy2 + (vv / 0.877))
+            val b2  = clampToRGB(yy2 + (uu / 0.492))
+            val g2 = clampToRGB((yy2 - (0.299 * r) - (0.114 * b)) / 0.587)
+
+            out[pixel + 1] = Color.rgb(r2, g2, b2)
+        }
+
+        return out
+    }
+
     private fun clampToRGB(input: Double): Int {
         val inputInt = truncate(input).toInt()
         return if (inputInt < 0) 0 else if (inputInt > 255) 255 else inputInt
+    }
+
+    private fun saveDebug(bitmap: Bitmap) {
+        val filename = "DEBUG" + UUID.randomUUID()
+        var fos: OutputStream?
+        var imageUri: Uri?
+        val contentValues = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+            put(MediaStore.MediaColumns.MIME_TYPE, "image/jpg")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES)
+                put(MediaStore.Video.Media.IS_PENDING, 1)
+            }
+        }
+
+        //use application context to get contentResolver
+        val contentResolver = application.contentResolver
+
+        contentResolver.also { resolver ->
+            imageUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+            fos = imageUri?.let { resolver.openOutputStream(it) }
+        }
+
+        fos?.use { bitmap.compress(Bitmap.CompressFormat.JPEG, 70, it) }
+
+        if (imageUri != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            contentValues.clear()
+            contentValues.put(MediaStore.Video.Media.IS_PENDING, 0)
+            contentResolver.update(imageUri!!, contentValues, null, null)
+        }
+
+        setThumbnailModifiedSinceSave(false)
+        Log.i("MAIN", "Saved successfully")
+        showMessage(R.string.thumbnail_saved)
     }
 }
