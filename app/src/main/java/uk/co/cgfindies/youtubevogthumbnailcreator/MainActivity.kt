@@ -37,9 +37,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.ByteArrayOutputStream
 import java.io.OutputStream
-import java.nio.ByteBuffer
 import java.util.*
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
@@ -222,51 +220,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private suspend fun processImages(uri: Uri) {
-        highestSmileProbability = 0.0f
-
-        val test = true
-
-        if (test) {
-            processImages2(uri)
-            return
-        }
-
+        // Can't use mediaFormat, MediaCoded, or MediaEncoder to get rotation until API 23 / 26
         val metaRetriever = MediaMetadataRetriever()
         metaRetriever.setDataSource(this, uri)
-
-        val duration = metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION) ?: return
-        val rotation = "0" // For some reason this comes out at 270 when MLKit is expecting 0 - metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION) ?: "0"
-
-        val durationUs = duration.toLong() * 1000
-        val rotationDegrees = rotation.toInt()
-
-        Log.i("MAIN", "rotation $rotationDegrees")
-        for (i in 1..durationUs step 1000000) {
-            if (!isProcessing) {
-                return
-            }
-
-            Log.i("MAIN", "Getting image")
-            val image = metaRetriever.getFrameAtTime(i) ?: continue
-            Log.i("MAIN", "Converting to input")
-            val inputImage = InputImage.fromBitmap(image, rotationDegrees)
-            Log.i("MAIN", "Processing start")
-            val found = processImage(inputImage)
-            Log.i("MAIN", "Processing end")
-            if (found) {
-                Log.i("MAIN", "Displaying")
-                currentFace = image.copy(image.config, true)
-                showImage()
-            }
-            Log.i("MAIN", "Recycling")
-            image.recycle()
-            Log.i("MAIN", "Done")
-        }
-
+        val rotation = (metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION) ?: "0").toInt()
         metaRetriever.release()
-    }
-
-    private suspend fun processImages2(uri: Uri) {
 
         val extractor = MediaExtractor()
         val that = this
@@ -281,39 +239,41 @@ class MainActivity : AppCompatActivity() {
             val bufferedImage = processor.next() ?: continue
 
             Log.i("MAIN", "Converting image")
-            val inputImage = InputImage.fromMediaImage(bufferedImage.image, 0)
+            val inputImage = InputImage.fromMediaImage(bufferedImage.image, rotation)
 
             Log.i("MAIN", "Processing start")
             val found = processImage(inputImage)
 
             Log.i("MAIN", "Processing end")
             if (found || firstRun) {
-                // firstRun = false
+                firstRun = false
                 Log.i("MAIN", "Displaying")
-                val y = bufferedImage.image.planes[0].buffer.capacity()
-                val u = bufferedImage.image.planes[1].buffer.capacity()
-                val v = bufferedImage.image.planes[2].buffer.capacity()
-                val format = bufferedImage.image.format
-                val format2 = inputImage.format
-                Log.e("MAIN", "Image Info: $y, $u, $v, $format, $format2")
 
-                val pixels = yuv420888ToSRGB2(bufferedImage.image)
-                Log.e("MAIN", "Pixels received ${ pixels.size } ${ pixels[pixels.size - 1].toUInt() } ${ pixels[pixels.size - 10].toUInt() } ${ pixels[pixels.size - 100].toUInt() } ")
-                // val tmp = getBitmap(bufferedImage.image)
+                val pixels = yuv420888TosRGB(bufferedImage.image)
 
                 val tmp = Bitmap.createBitmap(pixels, bufferedImage.image.width, bufferedImage.image.height, Bitmap.Config.ARGB_8888)
 
                 if (tmp == null) {
                     Log.e("MAIN", "Bitmap could not be decoded from input image!")
                 } else {
-                    Log.i("MAIN", "Bitmap created: ${ tmp.config }, ${ tmp.width }, ${ tmp.height }")
-                    saveDebug(tmp)
-                    currentFace = tmp
+                    currentFace = if (rotation != 0) {
+                        Log.i("MAIN", "Rotating $rotation degrees")
+                        val matrix = Matrix()
+                        matrix.postRotate(rotation.toFloat())
+                        val tmp2 = Bitmap.createBitmap(tmp,0,0,tmp.width,tmp.height,matrix,true)
+                        tmp.recycle()
+                        currentFace.recycle()
+                        tmp2
+                    } else {
+                        currentFace.recycle()
+                        tmp
+                    }
+                    Log.i("MAIN", "Bitmap created: ${ currentFace.config }, ${ currentFace.width }, ${ currentFace.height } $rotation")
+                    saveDebug(currentFace)
+                    showImage()
                 }
-                showImage()
             }
             bufferedImage.done()
-            break
         }
 
         processor.close()
@@ -419,79 +379,12 @@ class MainActivity : AppCompatActivity() {
         return splitText
     }
 
-    private fun getBitmap(image: Image): Bitmap? {
-        assert (image.format == ImageFormat.YUV_420_888)
-        val planeCount = image.planes.size
-        var bufferSize = 0
-        for (i in 0 until planeCount) {
-            bufferSize += image.planes[i].buffer.capacity()
-        }
-
-        val ib = ByteBuffer.allocate(bufferSize)
-
-        for (i in 0 until planeCount) {
-            ib.put(image.planes[i].buffer)
-        }
-
-        try {
-            val yuvImage = YuvImage(ib.array(), ImageFormat.YUV_420_888, image.width, image.height, null)
-            val stream = ByteArrayOutputStream()
-            yuvImage.compressToJpeg(Rect(0, 0, image.width, image.height), 80, stream)
-            val bmp = BitmapFactory.decodeByteArray(stream.toByteArray(), 0, stream.size())
-            stream.close()
-            return bmp
-        } catch (e: Exception) {
-            Log.e("VisionProcessorBase", "Error: " + e.message)
-        }
-        return null
-    }
-
-    private fun yuv420888ToSRGB(image: Image): IntArray {
+    private fun yuv420888TosRGB(image: Image): IntArray {
         assert (image.format == ImageFormat.YUV_420_888)
 
         val pixels = image.width * image.height
         val out = IntArray(pixels)
 
-        val width = image.width
-        val height = image.height
-        val y = image.planes[0].buffer
-        val u = image.planes[1].buffer
-        val v = image.planes[2].buffer
-        var pixelChannelIndex = 0
-
-        for (row in 0 until height) {
-            for (col in 0 until width) {
-                val yy = y[(row * width) + 1]
-                val uu = u[((row / 2) * (width / 2)) + (col / 2)]
-                val vv = v[((row / 2) * (width / 2)) + (col / 2)]
-
-                val r  = clampToRGB(1.164 * (yy - 16) + 1.596 * (vv - 128))
-                val g  = clampToRGB(1.164 * (yy - 16) - 0.813 * (vv - 128) - 0.391 * (uu - 128))
-                val b  = clampToRGB(1.164 * (yy - 16) + 2.018 * (uu - 128))
-
-                out[pixelChannelIndex++] = Color.rgb(r, g, b)
-            }
-        }
-
-        return out
-    }
-
-    private fun yuv420888ToSRGB2(image: Image): IntArray {
-        assert (image.format == ImageFormat.YUV_420_888)
-
-        val pixels = image.width * image.height
-        val out = IntArray(pixels)
-
-        val width = image.width
-        val height = image.height
-        Log.e("MAIN", """
-            ${ image.planes[0].pixelStride } 
-            ${ image.planes[0].rowStride } 
-            ${ image.planes[1].pixelStride } 
-            ${ image.planes[1].rowStride } 
-            ${ image.planes[2].pixelStride } 
-            ${ image.planes[2].rowStride } 
-        """)
         val y = image.planes[0].buffer
         val u = image.planes[1].buffer
         val v = image.planes[2].buffer
@@ -506,6 +399,10 @@ class MainActivity : AppCompatActivity() {
             R = (V / 0.877) + Y'
             B = (U / 0.492) + Y'
             G = (Y' - (0.299 * R) - (0.114 * B)) / 0.587
+
+            val r  = clampToRGB(1.164 * (yy - 16) + 1.596 * (vv - 128))
+            val g  = clampToRGB(1.164 * (yy - 16) - 0.813 * (vv - 128) - 0.391 * (uu - 128))
+            val b  = clampToRGB(1.164 * (yy - 16) + 2.018 * (uu - 128))
          */
 
         for (pixel in 0 until pixels step 2) {
