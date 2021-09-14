@@ -52,7 +52,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private val options = FaceDetectorOptions.Builder()
-        .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
+        .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
         .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
         .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
         .build()
@@ -123,10 +123,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun setIsProcessing(newValue: Boolean) {
         Log.i("MAIN", "setting is processing to $newValue")
-        val button: Button = findViewById(R.id.btn_pick_video)
         isProcessing = newValue
         val newStringId = if (isProcessing) R.string.stop_processing else R.string.pick_video
-        button.text = getText(newStringId)
+        runOnUiThread {
+            val button: Button = findViewById(R.id.btn_pick_video)
+            button.text = getText(newStringId)
+        }
     }
 
     private fun setThumbnailModifiedSinceSave(newValue: Boolean) {
@@ -254,6 +256,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         processor.close()
+        setIsProcessing(false)
     }
 
     private suspend fun processImage(inputImage: InputImage): Boolean {
