@@ -37,11 +37,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
 import java.io.OutputStream
 import java.util.*
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
-import kotlin.math.truncate
 import kotlin.random.Random
 
 const val TITLE_LINE_LENGTH = 13
@@ -232,7 +232,6 @@ class MainActivity : AppCompatActivity() {
         withContext(Dispatchers.Default) { extractor.setDataSource(that, uri, null) }
 
         val processor = VideoProcessor(extractor)
-        var firstRun = true
 
         while (processor.canProcessFurther() && isProcessing) {
             Log.i("MAIN", "Getting image")
@@ -245,33 +244,11 @@ class MainActivity : AppCompatActivity() {
             val found = processImage(inputImage)
 
             Log.i("MAIN", "Processing end")
-            if (found || firstRun) {
-                firstRun = false
+            if (found) {
                 Log.i("MAIN", "Displaying")
 
-                val pixels = yuv420888TosRGB(bufferedImage.image)
-
-                val tmp = Bitmap.createBitmap(pixels, bufferedImage.image.width, bufferedImage.image.height, Bitmap.Config.ARGB_8888)
-
-                if (tmp == null) {
-                    Log.e("MAIN", "Bitmap could not be decoded from input image!")
-                } else {
-                    currentFace = if (rotation != 0) {
-                        Log.i("MAIN", "Rotating $rotation degrees")
-                        val matrix = Matrix()
-                        matrix.postRotate(rotation.toFloat())
-                        val tmp2 = Bitmap.createBitmap(tmp,0,0,tmp.width,tmp.height,matrix,true)
-                        tmp.recycle()
-                        currentFace.recycle()
-                        tmp2
-                    } else {
-                        currentFace.recycle()
-                        tmp
-                    }
-                    Log.i("MAIN", "Bitmap created: ${ currentFace.config }, ${ currentFace.width }, ${ currentFace.height } $rotation")
-                    saveDebug(currentFace)
-                    showImage()
-                }
+                yuv420888TosRGB(bufferedImage.image, rotation)
+                Log.i("MAIN", "Bitmap created: ${ currentFace.config }, ${ currentFace.width }, ${ currentFace.height } $rotation")
             }
             bufferedImage.done()
         }
@@ -379,62 +356,36 @@ class MainActivity : AppCompatActivity() {
         return splitText
     }
 
-    private fun yuv420888TosRGB(image: Image): IntArray {
+    private fun yuv420888TosRGB(image: Image, rotation: Int) {
         assert (image.format == ImageFormat.YUV_420_888)
 
-        val pixels = image.width * image.height
-        val out = IntArray(pixels)
-
         val y = image.planes[0].buffer
-        val u = image.planes[1].buffer
-        val v = image.planes[2].buffer
+        val uv = image.planes[2].buffer
 
-        /*
-        From RGB:
-            Y' = 0.299*R + 0.587*G + 0.114B
-            U = 0.492 * (B - Y')
-            V = 0.877 * (R - Y')
+        val yLength = y.capacity()
+        val uvLength = uv.capacity()
+        val dst = ByteArray(yLength + uvLength) { 0 }
+        y.get(dst, 0, yLength)
+        uv.get(dst, yLength, uvLength)
 
-        To RGB
-            R = (V / 0.877) + Y'
-            B = (U / 0.492) + Y'
-            G = (Y' - (0.299 * R) - (0.114 * B)) / 0.587
+        val out = ByteArrayOutputStream()
+        val yuvImage = YuvImage(dst, ImageFormat.NV21, image.width, image.height, null)
+        yuvImage.compressToJpeg(Rect(0, 0, image.width, image.height), 50, out)
+        val imageBytes: ByteArray = out.toByteArray()
+        val tmp = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
 
-            val r  = clampToRGB(1.164 * (yy - 16) + 1.596 * (vv - 128))
-            val g  = clampToRGB(1.164 * (yy - 16) - 0.813 * (vv - 128) - 0.391 * (uu - 128))
-            val b  = clampToRGB(1.164 * (yy - 16) + 2.018 * (uu - 128))
-         */
-
-        for (pixel in 0 until pixels step 2) {
-            val halfPixel = pixel / 2
-            // TODO:: U and V have one element too few.
-            if (halfPixel >= u.capacity() || halfPixel >= v.capacity()) {
-                break
-            }
-            val yy = y[pixel]
-            val uu = u[halfPixel]
-            val vv = v[halfPixel]
-
-            val r  = clampToRGB(yy + (vv / 0.877))
-            val b  = clampToRGB(yy + (uu / 0.492))
-            val g  = clampToRGB((yy - (0.299 * r) - (0.114 * b)) / 0.587)
-
-            out[pixel] = Color.rgb(r, g, b)
-
-            val yy2 = y[pixel+1]
-            val r2  = clampToRGB(yy2 + (vv / 0.877))
-            val b2  = clampToRGB(yy2 + (uu / 0.492))
-            val g2 = clampToRGB((yy2 - (0.299 * r) - (0.114 * b)) / 0.587)
-
-            out[pixel + 1] = Color.rgb(r2, g2, b2)
+        currentFace.recycle()
+        currentFace = if (rotation != 0) {
+            val matrix = Matrix()
+            matrix.postRotate(270f)
+            val tmp2 = Bitmap.createBitmap(tmp,0,0,tmp.width,tmp.height,matrix,true)
+            tmp.recycle()
+            tmp2
+        } else {
+            tmp
         }
-
-        return out
-    }
-
-    private fun clampToRGB(input: Double): Int {
-        val inputInt = truncate(input).toInt()
-        return if (inputInt < 0) 0 else if (inputInt > 255) 255 else inputInt
+        saveDebug(currentFace)
+        showImage()
     }
 
     private fun saveDebug(bitmap: Bitmap) {
