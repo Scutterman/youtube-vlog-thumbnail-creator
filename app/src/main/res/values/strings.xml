@@ -10,4 +10,6 @@
     <string name="no_video_track_found">Could not process the video</string>
     <string name="pick_profile">Pick Profile</string>
     <string name="add_profile">Add Profile</string>
+    <string name="overlay_preview">Overlay preview</string>
+    <string name="delete_profile">Delete Profile</string>
 </resources>

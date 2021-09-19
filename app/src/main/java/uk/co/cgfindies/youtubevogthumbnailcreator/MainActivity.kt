@@ -98,8 +98,6 @@ class MainActivity : AppCompatActivity() {
 
         /**
          * TODO::
-         * - Hook up bin click to delete method
-         * - Refresh item list when deleting
          * - Add UI for adding a profile instead of just adding a default profile
          */
         profileManager = ProfileManager(this)
@@ -149,11 +147,23 @@ class MainActivity : AppCompatActivity() {
     private fun populateProfileList() {
         val list = findViewById<ListView>(R.id.profile_list)
         val profiles = profileManager.getAllProfiles().toMutableList()
+
         profileAdapter = ProfileAdapter(this, profiles)
+        profileAdapter.itemDeletedListener = {
+            position ->
+            val profile = profileAdapter.getItem(position) ?: throw IllegalStateException("Could not profile item clicked on")
+
+            profileManager.removeProfile(profile.id)
+            profileAdapter.remove(profile)
+            profileAdapter.notifyDataSetChanged()
+        }
+
         list.adapter = profileAdapter
         list.setOnItemClickListener { _, _, position, _ ->
             currentProfile = profileAdapter.getItem(position) ?: throw IllegalStateException("Could not profile item clicked on")
+            compileThumbnail()
         }
+
         Log.i("ProfileAdapter", "Done populating profile list")
     }
 
