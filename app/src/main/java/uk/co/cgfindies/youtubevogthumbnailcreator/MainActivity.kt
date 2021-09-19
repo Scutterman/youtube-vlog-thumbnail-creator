@@ -17,6 +17,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.text.Editable
 import android.util.Log
+import android.view.MenuItem
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
@@ -25,11 +26,14 @@ import android.widget.ImageView
 import android.widget.ListView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.Toolbar
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.drawable.toBitmap
+import androidx.core.view.GravityCompat
 import androidx.core.widget.doAfterTextChanged
+import androidx.drawerlayout.widget.DrawerLayout
 import com.google.android.material.snackbar.Snackbar
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.FaceDetection
@@ -79,6 +83,8 @@ class MainActivity : AppCompatActivity() {
 
     private val detector = FaceDetection.getClient(options)
 
+    private lateinit var drawer: DrawerLayout
+
     private var isProcessing = false
     private var highestSmileProbability = 0.0f
     private var thumbnailTitle = ""
@@ -95,6 +101,14 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         setContentView(R.layout.activity_main)
+
+        val toolbar = findViewById<Toolbar>(R.id.toolbar)
+        setSupportActionBar(toolbar)
+        supportActionBar?.setDisplayShowTitleEnabled(false)
+        supportActionBar?.setHomeAsUpIndicator(R.drawable.ic_menu);// set drawable icon
+        supportActionBar?.setDisplayHomeAsUpEnabled(true);
+
+        drawer = findViewById(R.id.drawer_layout)
 
         /**
          * TODO::
@@ -137,6 +151,21 @@ class MainActivity : AppCompatActivity() {
 
         showImage()
         setThumbnailModifiedSinceSave(false)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        val id: Int = item.itemId
+        return if (id == android.R.id.home) {
+            Log.i("Main", "Button click - ${ drawer.isDrawerOpen(GravityCompat.START) }")
+            if (drawer.isDrawerOpen(GravityCompat.START)) {
+                Log.i("Main", "Closing")
+                drawer.closeDrawer(GravityCompat.START)
+            } else {
+                Log.i("Main", "Opening")
+                drawer.openDrawer(GravityCompat.START)
+            }
+            true
+        } else super.onOptionsItemSelected(item)
     }
 
     override fun onDestroy() {
