@@ -76,11 +76,15 @@
             android:id="@+id/btn_add_profile"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/add_profile" />
+            android:text="@string/add_profile"
+            android:layout_weight="0"
+            />
         <ListView
             android:id="@+id/profile_list"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            />
     </LinearLayout>
 
 </androidx.drawerlayout.widget.DrawerLayout>
