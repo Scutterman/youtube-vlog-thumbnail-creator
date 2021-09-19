@@ -88,8 +88,8 @@ class MainActivity : AppCompatActivity() {
     private var lastPermissionRequest = ""
     private var thumbnailModifiedSinceSave = false
     private lateinit var profileManager: ProfileManager
-    private lateinit var profiles: Array<Profile>
     private lateinit var currentProfile: Profile
+    private lateinit var profileAdapter: ProfileAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -99,18 +99,21 @@ class MainActivity : AppCompatActivity() {
         /**
          * TODO::
          * - Hook up bin click to delete method
-         * - Refresh item list when adding or deleting
+         * - Refresh item list when deleting
          * - Add UI for adding a profile instead of just adding a default profile
          */
         profileManager = ProfileManager(this)
-        profiles = profileManager.getAllProfiles().toTypedArray()
         currentProfile = profileManager.getDefaultProfile()
 
         populateProfileList()
 
         findViewById<Button>(R.id.btn_add_profile).setOnClickListener {
-            profileManager.addProfile("Demo Foo", ResourcesCompat.getDrawable(resources, R.drawable.vlog_thumbnail_overlay, null)?.toBitmap()
-                ?: throw IllegalStateException("Overlay resource missing"), Rect(56, 207, 321, 472))
+            val bitmap = ResourcesCompat.getDrawable(resources, R.drawable.vlog_thumbnail_overlay, null)?.toBitmap()
+                ?: throw IllegalStateException("Overlay resource missing")
+
+            val newProfile = profileManager.addProfile("Demo Foo", bitmap, Rect(56, 207, 321, 472))
+            profileAdapter.add(newProfile)
+            profileAdapter.notifyDataSetInvalidated()
         }
 
         findViewById<Button>(R.id.btn_pick_video).setOnClickListener {
@@ -144,15 +147,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun populateProfileList() {
-        Log.i("MAIN", "Getting listview")
         val list = findViewById<ListView>(R.id.profile_list)
-        Log.i("ProfileAdapter", "Creating adapter")
-        val adapter = ProfileAdapter(this, profiles)
-        Log.i("ProfileAdapter", "Assigning adapter")
-        list.adapter = adapter
-        Log.i("ProfileAdapter", "Setting click listener")
+        val profiles = profileManager.getAllProfiles().toMutableList()
+        profileAdapter = ProfileAdapter(this, profiles)
+        list.adapter = profileAdapter
         list.setOnItemClickListener { _, _, position, _ ->
-            currentProfile = profiles[position]
+            currentProfile = profileAdapter.getItem(position) ?: throw IllegalStateException("Could not profile item clicked on")
         }
         Log.i("ProfileAdapter", "Done populating profile list")
     }

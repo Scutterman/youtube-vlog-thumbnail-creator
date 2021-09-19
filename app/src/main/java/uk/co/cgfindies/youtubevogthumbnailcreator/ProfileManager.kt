@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Rect
 import android.os.Build
+import android.util.Log
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.drawable.toBitmap
 import java.io.File
@@ -26,7 +27,7 @@ class ProfileManager(private val ctx: Context) {
         return HashSet<String>(metaPrefs.getStringSet("profileIds", null) ?: emptySet<String>()).sorted()
     }
 
-    fun addProfile(name: String, overlay: Bitmap, facePosition: Rect) {
+    fun addProfile(name: String, overlay: Bitmap, facePosition: Rect): Profile {
         val ids = getProfileIds()
         val nextId = if (ids.isEmpty()) "1" else (ids.last().toInt() + 1).toString()
         val newIds = ids.toMutableSet()
@@ -45,17 +46,22 @@ class ProfileManager(private val ctx: Context) {
             .putInt("facePositionRight", facePosition.right)
             .putInt("facePositionBottom", facePosition.bottom)
             .apply()
+
+        return getProfile(nextId)
     }
 
     fun removeProfile(id: String) {
         val ids = getProfileIds()
         if (ids.contains(id)) {
+            Log.i("ProfileManager", "Removing profile id $id")
             val mIds = ids.toMutableSet()
             mIds.remove(id)
             metaPrefs.edit().putStringSet("profileIds", mIds).apply()
 
+            Log.i("ProfileManager", "Clearing shared preferences for profile $id")
             ctx.getSharedPreferences(id, Context.MODE_PRIVATE).edit().clear().apply()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                Log.i("ProfileManager", "Deleting shared preferences for profile $id")
                 ctx.deleteSharedPreferences(id)
             }
 
@@ -63,10 +69,10 @@ class ProfileManager(private val ctx: Context) {
         }
     }
 
-    fun getProfile(id: String): Profile? {
+    private fun getProfile(id: String): Profile {
         val profilePrefs = ctx.getSharedPreferences(id, Context.MODE_PRIVATE)
         if (!profilePrefs.getBoolean("exists", false)) {
-            return null
+            throw IllegalArgumentException("Profile does not exist")
         }
 
         val profile = Profile()
@@ -96,11 +102,12 @@ class ProfileManager(private val ctx: Context) {
         val ids = getProfileIds()
         val profiles = mutableSetOf<Profile>()
         for (id in ids) {
-            val profile = getProfile(id)
-            if (profile == null) {
-                removeProfile(id)
-            } else {
+            try {
+                val profile = getProfile(id)
                 profiles.add(profile)
+            } catch (e: java.lang.IllegalArgumentException) {
+                Log.i("ProfileManager", "Profile $id doesn't exist, removing it from profile id list")
+                removeProfile(id)
             }
         }
 
