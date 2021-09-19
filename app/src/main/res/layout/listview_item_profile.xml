@@ -3,4 +3,5 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:drawableRight="@android:drawable/ic_menu_delete"
+    android:drawablePadding="15dp"
 />
