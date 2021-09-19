@@ -98,8 +98,6 @@ class MainActivity : AppCompatActivity() {
 
         /**
          * TODO::
-         * - Fix list item overlay drawable not displaying
-         * - Fix list item bin not displaying
          * - Hook up bin click to delete method
          * - Refresh item list when adding or deleting
          * - Add UI for adding a profile instead of just adding a default profile

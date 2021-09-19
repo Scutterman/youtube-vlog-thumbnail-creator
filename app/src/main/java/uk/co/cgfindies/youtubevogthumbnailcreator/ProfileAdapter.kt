@@ -1,6 +1,8 @@
 package uk.co.cgfindies.youtubevogthumbnailcreator
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Rect
 import android.graphics.drawable.BitmapDrawable
 import android.util.Log
 import android.view.LayoutInflater
@@ -11,19 +13,19 @@ import android.widget.TextView
 
 class ProfileAdapter(context: Context, private val values: Array<Profile>) : ArrayAdapter<Profile>(context, -1, values) {
     override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-        Log.i("ProfileAdapter", "Getting view")
+        Log.i("ProfileAdapter", "Getting view for position $position")
         val row: TextView
 
-        return if (convertView != null) convertView else {
-            Log.i("ProfileAdapter", "Getting layout inflater")
+        return if (convertView != null) {
+            convertView
+        } else {
             val inflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
-            Log.i("ProfileAdapter", "Inflating layout")
             row = inflater.inflate(R.layout.listview_item_profile, parent, false) as TextView
-            Log.i("ProfileAdapter", "Setting text")
             row.text = values[position].name
-            Log.i("ProfileAdapter", "Setting image")
-            row.setCompoundDrawables(BitmapDrawable(context.resources, values[position].overlay), null, null, null)
-            Log.i("ProfileAdapter", "Returning row")
+            val preview = BitmapDrawable(context.resources, Bitmap.createScaledBitmap(values[position].overlay, 111, 100, false))
+            preview.bounds = Rect(0, 0, 111, 100)
+            val existingDrawables = row.compoundDrawables
+            row.setCompoundDrawables(preview, existingDrawables[1], existingDrawables[2], existingDrawables[3])
             row
         }
     }
