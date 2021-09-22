@@ -20,6 +20,8 @@ class Profile {
     var facePosition = Rect()
 }
 
+const val PROFILE_MANAGER_DEFAULT_PROFILE_ID = "0"
+
 class ProfileManager(private val ctx: Context) {
     private val metaPrefs: SharedPreferences = ctx.getSharedPreferences("meta", Context.MODE_PRIVATE)
 
@@ -69,10 +71,10 @@ class ProfileManager(private val ctx: Context) {
         }
     }
 
-    private fun getProfile(id: String): Profile {
+    fun getProfile(id: String): Profile {
         val profilePrefs = ctx.getSharedPreferences(id, Context.MODE_PRIVATE)
         if (!profilePrefs.getBoolean("exists", false)) {
-            throw IllegalArgumentException("Profile does not exist")
+            throw IllegalArgumentException("Profile \"$id\" does not exist")
         }
 
         val profile = Profile()
@@ -90,7 +92,7 @@ class ProfileManager(private val ctx: Context) {
 
     fun getDefaultProfile(): Profile {
         val profile = Profile()
-        profile.id = "0"
+        profile.id = PROFILE_MANAGER_DEFAULT_PROFILE_ID
         profile.name = "Demo Profile"
         profile.facePosition = Rect(56, 207, 321, 472)
         profile.overlay = ResourcesCompat.getDrawable(ctx.resources, R.drawable.vlog_thumbnail_overlay, null)?.toBitmap()
