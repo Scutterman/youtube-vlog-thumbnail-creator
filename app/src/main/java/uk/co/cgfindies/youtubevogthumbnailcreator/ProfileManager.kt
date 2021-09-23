@@ -91,6 +91,11 @@ class ProfileManager(private val ctx: Context) {
     }
 
     fun getDefaultProfile(): Profile {
+        val ids = getProfileIds()
+        if (ids.isNotEmpty()) {
+            return getProfile(ids[0])
+        }
+
         val profile = Profile()
         profile.id = PROFILE_MANAGER_DEFAULT_PROFILE_ID
         profile.name = "Demo Profile"

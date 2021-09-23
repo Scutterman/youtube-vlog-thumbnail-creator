@@ -1,6 +1,5 @@
 package uk.co.cgfindies.youtubevogthumbnailcreator
 
-import android.graphics.Rect
 import android.os.Bundle
 import android.util.Log
 import android.view.MenuItem
@@ -8,8 +7,6 @@ import android.widget.Button
 import android.widget.ListView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
-import androidx.core.content.res.ResourcesCompat
-import androidx.core.graphics.drawable.toBitmap
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
 
@@ -35,32 +32,36 @@ class MainActivity : AppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         drawer = findViewById(R.id.drawer_layout)
-
-        /**
-         * TODO::
-         * - Add UI for adding a profile instead of just adding a default profile
-         */
         profileManager = ProfileManager(this)
         currentProfile = profileManager.getDefaultProfile()
 
         populateProfileList()
 
         findViewById<Button>(R.id.btn_add_profile).setOnClickListener {
-            val bitmap = ResourcesCompat.getDrawable(resources, R.drawable.vlog_thumbnail_overlay, null)?.toBitmap()
-                ?: throw IllegalStateException("Overlay resource missing")
-
-            val newProfile = profileManager.addProfile("Demo Foo", bitmap, Rect(56, 207, 321, 472))
-            profileAdapter.add(newProfile)
-            profileAdapter.notifyDataSetInvalidated()
-        }
-
-        if (savedInstanceState == null) {
             supportFragmentManager
                 .beginTransaction()
                 .setReorderingAllowed(true)
-                .add(R.id.fragment_container_view, ThumbnailFragment.newInstance(currentProfile.id), "MAIN_FRAGMENT")
+                .replace(R.id.fragment_container_view, ProfileAddFragment.newInstance { profile ->
+                    profileAdapter.add(profile)
+                    profileAdapter.notifyDataSetInvalidated()
+                    showThumbnailFragment()
+                }, "ADD_THUMBNAIL_FRAGMENT")
                 .commit()
         }
+
+        if (savedInstanceState == null) {
+            showThumbnailFragment(true)
+        }
+    }
+
+    private fun showThumbnailFragment(shouldAdd: Boolean = false) {
+        val container = R.id.fragment_container_view
+        val fragment = ThumbnailFragment.newInstance(currentProfile.id)
+        val tag = "MAIN_FRAGMENT"
+
+        val transaction = supportFragmentManager.beginTransaction().setReorderingAllowed(true)
+        if (shouldAdd) transaction.add(container, fragment, tag) else transaction.replace(container, fragment, tag)
+        transaction.commit()
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -99,6 +100,8 @@ class MainActivity : AppCompatActivity() {
             val fragment = supportFragmentManager.findFragmentByTag("MAIN_FRAGMENT")
             if (fragment is ThumbnailFragment) {
                 fragment.profileChanged(currentProfile)
+            } else {
+                showThumbnailFragment()
             }
         }
 

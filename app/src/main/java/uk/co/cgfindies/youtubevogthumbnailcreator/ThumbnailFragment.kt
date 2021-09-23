@@ -27,8 +27,6 @@ import android.widget.ImageView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.content.res.ResourcesCompat
-import androidx.core.graphics.drawable.toBitmap
 import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
 import com.google.android.material.snackbar.Snackbar
@@ -41,7 +39,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.OutputStream
-import java.util.*
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 import kotlin.random.Random
@@ -92,9 +89,7 @@ class ThumbnailFragment : Fragment() {
 
     private val requestReadPermissionContract = registerForActivityResult(ActivityResultContracts.RequestPermission()) { result ->
         if (result) {
-            if (lastPermissionRequest == Manifest.permission.READ_EXTERNAL_STORAGE) {
-                openGalleryForVideo()
-            } else if (lastPermissionRequest == Manifest.permission.WRITE_EXTERNAL_STORAGE) {
+            if (lastPermissionRequest == Manifest.permission.WRITE_EXTERNAL_STORAGE) {
                 saveImage()
             }
         }
@@ -104,8 +99,7 @@ class ThumbnailFragment : Fragment() {
     private var isProcessing = false
     private var highestSmileProbability = 0.0f
     private var thumbnailTitle = ""
-    private var facecamPosition = Rect(56, 207, 321, 472)
-    private var currentFace: Bitmap = Bitmap.createBitmap(facecamPosition.right - facecamPosition.left, facecamPosition.bottom - facecamPosition.top, Bitmap.Config.RGB_565)
+    private var currentFace: Bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.RGB_565)
     private var currentFacePosition = Rect(0,0,0,0)
     private var lastPermissionRequest = ""
     private var thumbnailModifiedSinceSave = false
@@ -122,8 +116,8 @@ class ThumbnailFragment : Fragment() {
         arguments?.let {
             val profileId = it.getString(THUMBNAIL_FRAGMENT_ARG_PROFILE_ID)
             val profileManager = ProfileManager(this.requireContext())
-
             profile = if (profileId.isNullOrEmpty() || profileId == PROFILE_MANAGER_DEFAULT_PROFILE_ID) profileManager.getDefaultProfile() else profileManager.getProfile(profileId)
+            showImage()
         }
 
         requireView().findViewById<Button>(R.id.btn_pick_video).setOnClickListener {
@@ -158,16 +152,15 @@ class ThumbnailFragment : Fragment() {
 
     fun profileChanged(newProfile: Profile) {
         profile = newProfile
-        compileThumbnail()
+        showImage()
     }
 
     private fun setIsProcessing(newValue: Boolean) {
         Log.i("MAIN", "setting is processing to $newValue")
         isProcessing = newValue
         val newStringId = if (isProcessing) R.string.stop_processing else R.string.pick_video
-        requireActivity().runOnUiThread {
-            val button = requireView().findViewById<Button>(R.id.btn_pick_video)
-            button.text = getText(newStringId)
+        activity?.runOnUiThread {
+            view?.findViewById<Button>(R.id.btn_pick_video)?.text = getText(newStringId)
         }
     }
 
@@ -187,17 +180,12 @@ class ThumbnailFragment : Fragment() {
     }
 
     private fun openGalleryForVideo() {
-        if (!hasPermission(Manifest.permission.READ_EXTERNAL_STORAGE)) {
-            getPermission(Manifest.permission.READ_EXTERNAL_STORAGE, getString(R.string.request_external_read_permission))
-            return
-        }
-
         getVideoContract.launch("video/*")
     }
 
     private fun saveImage() {
         if (!hasPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-            getPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE, getString(R.string.request_external_read_permission))
+            getPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE, getString(R.string.request_external_write_permission))
             return
         }
 
@@ -256,13 +244,14 @@ class ThumbnailFragment : Fragment() {
             ) { _, _ ->
                 requestReadPermissionContract.launch(permission)
             }
+            alertBuilder.show()
         } else {
             requestReadPermissionContract.launch(permission)
         }
     }
 
     private suspend fun processImages(uri: Uri) {
-        // Can't use mediaFormat, MediaCoded, or MediaEncoder to get rotation until API 23 / 26
+        // Can't use mediaFormat, MediaCodex, or MediaEncoder to get rotation until API 23 / 26
         val metaRetriever = MediaMetadataRetriever()
         metaRetriever.setDataSource(this.requireContext(), uri)
         val rotation = (metaRetriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION) ?: "0").toInt()
@@ -342,13 +331,10 @@ class ThumbnailFragment : Fragment() {
     }
 
     private fun compileThumbnail(): Bitmap {
-        val overlay = ResourcesCompat.getDrawable(resources, R.drawable.vlog_thumbnail_overlay, null)?.toBitmap()
-            ?: throw IllegalStateException("Overlay resource missing")
-
         setThumbnailModifiedSinceSave(true)
-        val thumbnail = Bitmap.createBitmap(overlay.copy(overlay.config, true))
+        val thumbnail = Bitmap.createBitmap(profile.overlay.copy(profile.overlay.config, true))
         val canvas = Canvas(thumbnail)
-        canvas.drawBitmap(currentFace, currentFacePosition, facecamPosition, null)
+        canvas.drawBitmap(currentFace, currentFacePosition, profile.facePosition, null)
 
         if (thumbnailTitle.isNotEmpty()) {
             val splitTitleTexts = splitTextToFitOnCanvas(thumbnailTitle)
@@ -433,41 +419,6 @@ class ThumbnailFragment : Fragment() {
         } else {
             tmp
         }
-        saveDebug(currentFace)
         showImage()
-    }
-
-    private fun saveDebug(bitmap: Bitmap) {
-        val filename = "DEBUG" + UUID.randomUUID()
-        var fos: OutputStream?
-        var imageUri: Uri?
-        val contentValues = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
-            put(MediaStore.MediaColumns.MIME_TYPE, "image/jpg")
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES)
-                put(MediaStore.Video.Media.IS_PENDING, 1)
-            }
-        }
-
-        //use application context to get contentResolver
-        val contentResolver = requireActivity().application.contentResolver
-
-        contentResolver.also { resolver ->
-            imageUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-            fos = imageUri?.let { resolver.openOutputStream(it) }
-        }
-
-        fos?.use { bitmap.compress(Bitmap.CompressFormat.JPEG, 70, it) }
-
-        if (imageUri != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            contentValues.clear()
-            contentValues.put(MediaStore.Video.Media.IS_PENDING, 0)
-            contentResolver.update(imageUri!!, contentValues, null, null)
-        }
-
-        setThumbnailModifiedSinceSave(false)
-        Log.i("MAIN", "Saved successfully")
-        showMessage(R.string.thumbnail_saved)
     }
 }
