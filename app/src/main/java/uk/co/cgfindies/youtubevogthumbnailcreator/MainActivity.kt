@@ -2,6 +2,7 @@ package uk.co.cgfindies.youtubevogthumbnailcreator
 
 import android.os.Bundle
 import android.util.Log
+import android.view.Menu
 import android.view.MenuItem
 import android.widget.Button
 import android.widget.ListView
@@ -9,6 +10,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
+import androidx.fragment.app.Fragment
 
 const val TITLE_LINE_LENGTH = 13
 
@@ -44,21 +46,23 @@ class MainActivity : AppCompatActivity() {
                 .replace(R.id.fragment_container_view, ProfileAddFragment.newInstance { profile ->
                     profileAdapter.add(profile)
                     profileAdapter.notifyDataSetInvalidated()
-                    showThumbnailFragment()
-                }, "ADD_THUMBNAIL_FRAGMENT")
+                    changeFragment(ThumbnailFragment.newInstance(currentProfile.id), "ADD_THUMBNAIL_FRAGMENT")
+                }, "ADD_PROFILE_FRAGMENT")
                 .commit()
         }
 
         if (savedInstanceState == null) {
-            showThumbnailFragment(true)
+            changeFragment(ThumbnailFragment.newInstance(currentProfile.id), "ADD_THUMBNAIL_FRAGMENT",true)
         }
     }
 
-    private fun showThumbnailFragment(shouldAdd: Boolean = false) {
-        val container = R.id.fragment_container_view
-        val fragment = ThumbnailFragment.newInstance(currentProfile.id)
-        val tag = "MAIN_FRAGMENT"
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.menu_activity_main_toolbar, menu)
+        return super.onCreateOptionsMenu(menu)
+    }
 
+    private fun changeFragment(fragment: Fragment, tag: String, shouldAdd: Boolean = false) {
+        val container = R.id.fragment_container_view
         val transaction = supportFragmentManager.beginTransaction().setReorderingAllowed(true)
         if (shouldAdd) transaction.add(container, fragment, tag) else transaction.replace(container, fragment, tag)
         transaction.commit()
@@ -66,7 +70,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         val id: Int = item.itemId
-        Log.i("MAIN", "Click on option ${item.itemId} and we want ${android.R.id.home}")
+        Log.i("MAIN", "Click on option ${ item.itemId } and we want ${ android.R.id.home }")
         return if (id == android.R.id.home) {
             Log.i("Main", "Button click - ${ drawer.isDrawerOpen(GravityCompat.START) }")
             if (drawer.isDrawerOpen(GravityCompat.START)) {
@@ -76,6 +80,9 @@ class MainActivity : AppCompatActivity() {
                 Log.i("Main", "Opening")
                 drawer.openDrawer(GravityCompat.START)
             }
+            true
+        } else if (id == R.id.open_upload) {
+            changeFragment(UploadFragment.newInstance(), "UPLOAD_FRAGMENT")
             true
         } else super.onOptionsItemSelected(item)
     }
@@ -101,7 +108,7 @@ class MainActivity : AppCompatActivity() {
             if (fragment is ThumbnailFragment) {
                 fragment.profileChanged(currentProfile)
             } else {
-                showThumbnailFragment()
+                changeFragment(ThumbnailFragment.newInstance(currentProfile.id), "ADD_THUMBNAIL_FRAGMENT")
             }
         }
 

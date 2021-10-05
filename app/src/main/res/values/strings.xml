@@ -23,4 +23,12 @@
     <string name="profile_thumbnail_face_bottom">Bottom</string>
     <string name="profile_save">Save Profile</string>
     <string name="profile_add_face_bounds_explanation">Enter the values for the area where the face will be placed on the background</string>
+    <string name="upload_video">Upload Video</string>
+
+    <string name="network_unavailable">No network connection available</string>
+    <string name="no_results">No results returned</string>
+    <string name="error_uploading">"Error while uploading"</string>
+    <string name="upload_cancelled">Request cancelled.</string>
+    <string name="requires_google_play_services">This app requires Google Play Services. Please install Google Play Services on your device and relaunch this app.</string>
+    <string name="go_to_uploads">Go to Uploads</string>
 </resources>
