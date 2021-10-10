@@ -31,4 +31,6 @@
     <string name="upload_cancelled">Request cancelled.</string>
     <string name="requires_google_play_services">This app requires Google Play Services. Please install Google Play Services on your device and relaunch this app.</string>
     <string name="go_to_uploads">Go to Uploads</string>
+
+    <string name="request_accounts_permission_message">This app needs to access your Google account (via Contacts) to display your Youtube channels.</string>
 </resources>

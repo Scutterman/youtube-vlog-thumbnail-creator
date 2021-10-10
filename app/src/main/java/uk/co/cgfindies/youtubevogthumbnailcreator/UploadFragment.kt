@@ -3,6 +3,7 @@
 import android.Manifest
 import android.accounts.AccountManager
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
 import android.os.Bundle
@@ -13,6 +14,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.TextView
+import androidx.activity.result.contract.ActivityResultContract
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
@@ -25,25 +28,66 @@ import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.client.util.ExponentialBackOff
 import com.google.api.services.youtube.YouTube
 import com.google.api.services.youtube.YouTubeScopes
-import com.vmadalin.easypermissions.EasyPermissions
-import com.vmadalin.easypermissions.annotations.AfterPermissionGranted
+import kotlinx.coroutines.DelicateCoroutinesApi
 import java.io.IOException
 import java.util.*
 
- const val REQUEST_ACCOUNT_PICKER = 1000
- const val REQUEST_AUTHORIZATION = 1001
- const val REQUEST_GOOGLE_PLAY_SERVICES = 1002
- const val REQUEST_PERMISSION_GET_ACCOUNTS = 1003
-
  private const val PREF_ACCOUNT_NAME = "accountName"
+
+ class ChooseAccountActivityResultContract: ActivityResultContract<GoogleAccountCredential, String?>() {
+     override fun createIntent(context: Context, input: GoogleAccountCredential): Intent {
+         return input.newChooseAccountIntent()
+     }
+
+     override fun parseResult(resultCode: Int, data: Intent?): String? {
+         return if (resultCode == Activity.RESULT_OK && data != null && data.extras != null) {
+             data.getStringExtra(AccountManager.KEY_ACCOUNT_NAME)
+         } else null
+     }
+ }
+
+ class RequestAuthorizationActivityResultContract: ActivityResultContract<UserRecoverableAuthIOException, Boolean>() {
+     override fun createIntent(context: Context, input: UserRecoverableAuthIOException): Intent {
+         return input.intent
+     }
+
+     override fun parseResult(resultCode: Int, data: Intent?): Boolean {
+         return resultCode == Activity.RESULT_OK
+     }
+ }
 
  /**
  * A simple [Fragment] subclass.
  * Use the [UploadFragment.newInstance] factory method to
  * create an instance of this fragment.
+ *
+ * TODO::At least some of this should be in a service so we don't have to deal with it getting destroyed
  */
-class UploadFragment : Fragment(), EasyPermissions.PermissionCallbacks {
+ @DelicateCoroutinesApi
+class UploadFragment : Fragment() {
     private var mCredential: GoogleAccountCredential? = null
+    private val newAccountContract = registerForActivityResult(ChooseAccountActivityResultContract()) { accountName ->
+        if (accountName != null) {
+            val settings = requireActivity().getPreferences(Activity.MODE_PRIVATE)
+            val editor = settings.edit()
+            editor.putString(PREF_ACCOUNT_NAME, accountName)
+            editor.apply()
+            mCredential!!.selectedAccountName = accountName
+            resultsFromApi
+        }
+    }
+
+     private val requestAuthorizationContract = registerForActivityResult(RequestAuthorizationActivityResultContract()) { isAuthorized ->
+         if (isAuthorized) {
+             resultsFromApi
+         }
+     }
+
+     private val requestAccountsPermissionContract = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+         if (granted) {
+             chooseAccount()
+         }
+     }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -115,111 +159,19 @@ class UploadFragment : Fragment(), EasyPermissions.PermissionCallbacks {
      * function will be rerun automatically whenever the GET_ACCOUNTS permission
      * is granted.
      */
-    @AfterPermissionGranted(REQUEST_PERMISSION_GET_ACCOUNTS)
     private fun chooseAccount() {
-        if (EasyPermissions.hasPermissions(
-                requireContext(), Manifest.permission.GET_ACCOUNTS
-            )
-        ) {
+        if (Utility.hasPermission(requireContext(), Manifest.permission.GET_ACCOUNTS)) {
             val accountName = requireActivity().getPreferences(Activity.MODE_PRIVATE)
                 .getString(PREF_ACCOUNT_NAME, null)
             if (accountName != null && mCredential != null) {
                 mCredential?.selectedAccountName = accountName
                 resultsFromApi
             } else {
-                // Start a dialog from which the user can choose an account
-                startActivityForResult(
-                    mCredential!!.newChooseAccountIntent(),
-                    REQUEST_ACCOUNT_PICKER
-                )
+                newAccountContract.launch(mCredential)
             }
         } else {
-            // Request the GET_ACCOUNTS permission via a user dialog
-            EasyPermissions.requestPermissions(
-                this,
-                "This app needs to access your Google account (via Contacts).",
-                REQUEST_PERMISSION_GET_ACCOUNTS,
-                Manifest.permission.GET_ACCOUNTS
-            )
+            Utility.getPermission(requireActivity(), requestAccountsPermissionContract, Manifest.permission.GET_ACCOUNTS, getString(R.string.request_accounts_permission_message))
         }
-    }
-
-    /**
-     * Called when an activity launched here (specifically, AccountPicker
-     * and authorization) exits, giving you the requestCode you started it with,
-     * the resultCode it returned, and any additional data from it.
-     * @param requestCode code indicating which activity result is incoming.
-     * @param resultCode code indicating the result of the incoming
-     * activity result.
-     * @param data Intent (containing result data) returned by incoming
-     * activity result.
-     */
-    override fun onActivityResult(
-        requestCode: Int, resultCode: Int, data: Intent?
-    ) {
-        super.onActivityResult(requestCode, resultCode, data)
-        when (requestCode) {
-            REQUEST_GOOGLE_PLAY_SERVICES -> if (resultCode != Activity.RESULT_OK) {
-                setOutputText(R.string.requires_google_play_services)
-            } else {
-                resultsFromApi
-            }
-            REQUEST_ACCOUNT_PICKER -> if (resultCode == Activity.RESULT_OK && data != null && data.extras != null) {
-                val accountName = data.getStringExtra(AccountManager.KEY_ACCOUNT_NAME)
-                if (accountName != null) {
-                    val settings = requireActivity().getPreferences(Activity.MODE_PRIVATE)
-                    val editor = settings.edit()
-                    editor.putString(PREF_ACCOUNT_NAME, accountName)
-                    editor.apply()
-                    mCredential!!.selectedAccountName = accountName
-                    resultsFromApi
-                }
-            }
-            REQUEST_AUTHORIZATION -> if (resultCode == Activity.RESULT_OK) {
-                resultsFromApi
-            }
-        }
-    }
-
-    /**
-     * Respond to requests for permissions at runtime for API 23 and above.
-     * @param requestCode The request code passed in
-     * requestPermissions(android.app.Activity, String, int, String[])
-     * @param permissions The requested permissions. Never null.
-     * @param grantResults The grant results for the corresponding permissions
-     * which is either PERMISSION_GRANTED or PERMISSION_DENIED. Never null.
-     */
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        EasyPermissions.onRequestPermissionsResult(
-            requestCode, permissions, grantResults, this
-        )
-    }
-
-    /**
-     * Callback for when a permission is granted using the EasyPermissions
-     * library.
-     * @param requestCode The request code associated with the requested
-     * permission
-     * @param List The requested permission list. Never null.
-     */
-    override fun onPermissionsGranted(requestCode: Int, perms: List<String>) {
-        // Do nothing.
-    }
-
-    /**
-     * Callback for when a permission is denied using the EasyPermissions
-     * library.
-     * @param requestCode The request code associated with the requested
-     * permission
-     * @param List The requested permission list. Never null.
-     */
-    override fun onPermissionsDenied(requestCode: Int, perms: List<String>) {
-        // Do nothing.
     }
 
     /**
@@ -267,11 +219,10 @@ class UploadFragment : Fragment(), EasyPermissions.PermissionCallbacks {
         connectionStatusCode: Int
     ) {
         val apiAvailability = GoogleApiAvailability.getInstance()
-        val dialog = apiAvailability.getErrorDialog(
-            this@UploadFragment,
-            connectionStatusCode,
-            REQUEST_GOOGLE_PLAY_SERVICES
-        )
+        val dialog = apiAvailability.getErrorDialog(this@UploadFragment, connectionStatusCode,0) {
+            Utility.showMessage(requireActivity(), R.string.requires_google_play_services)
+        }
+
         dialog?.show()
     }
 
@@ -361,10 +312,7 @@ class UploadFragment : Fragment(), EasyPermissions.PermissionCallbacks {
                         )
                     }
                     is UserRecoverableAuthIOException -> {
-                        startActivityForResult(
-                            (mLastError as UserRecoverableAuthIOException).intent,
-                            REQUEST_AUTHORIZATION
-                        )
+                        requestAuthorizationContract.launch(mLastError as UserRecoverableAuthIOException)
                     }
                     else -> {
                         Log.e("UPLOAD", "Error while uploading", mLastError)

@@ -88,6 +88,8 @@ abstract class CoroutinesAsyncTask<Params, Progress, Result>(private val taskNam
         }
     }
 
+    // publishProgress is part of the public contract that we may use later on
+    @Suppress("unused")
     fun publishProgress(vararg progress: Progress) {
         //need to update main thread
         GlobalScope.launch(Dispatchers.Main) {
