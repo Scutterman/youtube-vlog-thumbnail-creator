@@ -5,7 +5,6 @@ import android.accounts.AccountManager
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.net.ConnectivityManager
 import android.os.Bundle
 import android.text.TextUtils
 import android.util.Log
@@ -65,14 +64,16 @@ import java.util.*
  */
  @DelicateCoroutinesApi
 class UploadFragment : Fragment() {
-    private var mCredential: GoogleAccountCredential? = null
+    private lateinit var mCredential: GoogleAccountCredential
+    private lateinit var networkMonitor: NetworkMonitor
+
     private val newAccountContract = registerForActivityResult(ChooseAccountActivityResultContract()) { accountName ->
         if (accountName != null) {
             val settings = requireActivity().getPreferences(Activity.MODE_PRIVATE)
             val editor = settings.edit()
             editor.putString(PREF_ACCOUNT_NAME, accountName)
             editor.apply()
-            mCredential!!.selectedAccountName = accountName
+            mCredential.selectedAccountName = accountName
             resultsFromApi
         }
     }
@@ -98,6 +99,9 @@ class UploadFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        networkMonitor = NetworkMonitor.getInstance(requireContext())
+
         val button = requireView().findViewById<Button>(R.id.btn_upload_video)
         button.setOnClickListener {
             button.isEnabled = false
@@ -140,7 +144,7 @@ class UploadFragment : Fragment() {
             } else if (mCredential?.selectedAccountName == null) {
                 Log.i("UPLOAD", "Choosing account")
                 chooseAccount()
-            } else if (!isDeviceOnline) {
+            } else if (!networkMonitor.isConnected) {
                 Log.i("UPLOAD", "No Network")
                 setOutputText(R.string.network_unavailable)
             } else {
@@ -173,17 +177,6 @@ class UploadFragment : Fragment() {
             Utility.getPermission(requireActivity(), requestAccountsPermissionContract, Manifest.permission.GET_ACCOUNTS, getString(R.string.request_accounts_permission_message))
         }
     }
-
-    /**
-     * Checks whether the device currently has a network connection.
-     * @return true if the device has a network connection, false otherwise.
-     */
-    private val isDeviceOnline: Boolean
-        get() {
-            val connMgr = requireContext().getSystemService(Activity.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val networkInfo = connMgr.activeNetworkInfo
-            return networkInfo != null && networkInfo.isConnected
-        }
 
     /**
      * Check that Google Play services APK is installed and up to date.
@@ -232,7 +225,7 @@ class UploadFragment : Fragment() {
      */
     private inner class MakeRequestTask constructor(credential: GoogleAccountCredential?) :
         CoroutinesAsyncTask<Void?, Void?, List<String?>?>("MakeYoutubeRequest") {
-        private var mService: YouTube? = null
+        private val mService: YouTube
         private var mLastError: Exception? = null
 
         /**
@@ -262,7 +255,7 @@ class UploadFragment : Fragment() {
                 Log.i("UPLOAD", "data from api")
                 // Get a list of up to 10 files.
                 val channelInfo: MutableList<String?> = ArrayList()
-                val result = mService!!.channels().list("snippet,contentDetails,statistics")
+                val result = mService.channels().list("snippet,contentDetails,statistics")
                     .setMine(true)
                     .execute()
 
