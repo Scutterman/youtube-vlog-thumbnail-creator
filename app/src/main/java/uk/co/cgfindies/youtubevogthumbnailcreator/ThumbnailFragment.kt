@@ -1,10 +1,8 @@
 package uk.co.cgfindies.youtubevogthumbnailcreator
 
 import android.Manifest
-import android.app.AlertDialog
 import android.content.ContentValues
 import android.content.Context
-import android.content.pm.PackageManager
 import android.graphics.*
 import android.graphics.drawable.BitmapDrawable
 import android.media.Image
@@ -25,11 +23,8 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
-import com.google.android.material.snackbar.Snackbar
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetectorOptions
@@ -184,8 +179,9 @@ class ThumbnailFragment : Fragment() {
     }
 
     private fun saveImage() {
-        if (!hasPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-            getPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE, getString(R.string.request_external_write_permission))
+        if (!Utility.hasPermission(requireContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+            lastPermissionRequest = Manifest.permission.WRITE_EXTERNAL_STORAGE
+            Utility.getPermission(requireActivity(), requestReadPermissionContract, Manifest.permission.WRITE_EXTERNAL_STORAGE, getString(R.string.request_external_write_permission))
             return
         }
 
@@ -222,32 +218,7 @@ class ThumbnailFragment : Fragment() {
 
         setThumbnailModifiedSinceSave(false)
         Log.i("MAIN", "Saved successfully")
-        showMessage(R.string.thumbnail_saved)
-    }
-
-    private fun showMessage(messageId: Int) {
-        val view = requireActivity().findViewById<View>(android.R.id.content)
-        Snackbar.make(view, messageId, Snackbar.LENGTH_LONG).show()
-    }
-
-    private fun hasPermission(permission: String): Boolean {
-        return ContextCompat.checkSelfPermission(this.requireContext(), permission) == PackageManager.PERMISSION_GRANTED
-    }
-
-    private fun getPermission(permission: String, message: String) {
-        lastPermissionRequest = permission
-        if (ActivityCompat.shouldShowRequestPermissionRationale(this.requireActivity(), permission)) {
-            val alertBuilder = AlertDialog.Builder(this.requireContext())
-            alertBuilder.setCancelable(true)
-            alertBuilder.setMessage(message)
-            alertBuilder.setPositiveButton(android.R.string.ok
-            ) { _, _ ->
-                requestReadPermissionContract.launch(permission)
-            }
-            alertBuilder.show()
-        } else {
-            requestReadPermissionContract.launch(permission)
-        }
+        Utility.showMessage(requireActivity(), R.string.thumbnail_saved)
     }
 
     private suspend fun processImages(uri: Uri) {
