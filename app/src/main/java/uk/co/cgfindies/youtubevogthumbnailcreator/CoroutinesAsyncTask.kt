@@ -18,12 +18,12 @@ abstract class CoroutinesAsyncTask<Params, Progress, Result>(private val taskNam
 
     private var status: Status = Status.PENDING
     private var preJob: Job? = null
-    private var bgJob: Deferred<Result>? = null
-    abstract fun doInBackground(vararg params: Params?): Result
+    private var bgJob: Deferred<Result?>? = null
+    abstract fun doInBackground(vararg params: Params?): Result?
     open fun onProgressUpdate(vararg values: Progress?) {}
     open fun onPostExecute(result: Result?) {}
     open fun onPreExecute() {}
-    open fun onCancelled(result: Result?) {}
+    open fun onCancelled(e: Exception?) {}
     private var isCancelled = false
 
     /**
@@ -31,7 +31,6 @@ abstract class CoroutinesAsyncTask<Params, Progress, Result>(private val taskNam
      * default thread pool
      */
     fun execute(vararg params: Params?) {
-
         if (status != Status.PENDING) {
             when (status) {
                 Status.RUNNING -> throw IllegalStateException("Cannot execute task:" + " the task is already running.")
@@ -56,7 +55,9 @@ abstract class CoroutinesAsyncTask<Params, Progress, Result>(private val taskNam
                     doInBackground(*params)
                 }
             }
+
             preJob!!.join()
+
             if (!isCancelled) {
                 withContext(Dispatchers.Main) {
                     onPostExecute(bgJob!!.await())
@@ -67,17 +68,18 @@ abstract class CoroutinesAsyncTask<Params, Progress, Result>(private val taskNam
         }
     }
 
-    fun cancel(mayInterruptIfRunning: Boolean) {
+    fun cancel(mayInterruptIfRunning: Boolean, e: java.lang.Exception?) {
         if (preJob == null || bgJob == null) {
             printLog("$taskName has already been cancelled/finished/not yet started.")
             return
         }
+
         if (mayInterruptIfRunning || (!preJob!!.isActive && !bgJob!!.isActive)) {
             isCancelled = true
             status = Status.FINISHED
             printLog("Running onCancelled")
             GlobalScope.launch(Dispatchers.Main) {
-                onCancelled(null)
+                onCancelled(e)
             }
 
             printLog("Cancelling preJob")
