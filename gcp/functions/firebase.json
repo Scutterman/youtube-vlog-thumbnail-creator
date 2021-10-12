@@ -1,0 +1,8 @@
+{
+  "functions": {
+    "predeploy": [
+      "yarn lint",
+      "yarn build"
+    ]
+  }
+}
