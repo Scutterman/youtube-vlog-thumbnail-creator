@@ -1,3 +1,4 @@
 {
-  "clientId": "[ENTER CLIENT ID HERE]"
+  "clientId": "[ENTER CLIENT ID HERE]",
+  "apiBaseUrl": "[ENTER API URL HERE]"
 }

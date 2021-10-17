@@ -13,7 +13,9 @@
 
 ## Backend deployment
 - In the source code, go to the `gcp/functions/` directory
-- Copy the `config.sample.json` file to `config.json` and enter the Client Id from the youtube OAuth application into the value of the `clientId` field
+- Copy the `config.sample.json` file to `config.json`
+  - The value of the `clientId` field is the Client Id from the youtube OAuth application
+  - The value of the `apiBaseUrl` field is the `trigger` of the function once it's deployed. This follows a predictable path if you know your function region, project id, and function name, but if in doubt you can deploy the function once with an empty string for this value so you can view the trigger information using the gcp functions dashboard
 - Run the `yarn` command to install all dependencies
 - Run `yarn firebase login` to log in to gcp
 - Run `yarn firebase init functions` to initialise firebase functions and create or select your firebase project
