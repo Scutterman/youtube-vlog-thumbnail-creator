@@ -36,6 +36,10 @@ module.exports = {
     'import/no-unresolved': 0,
     'comma-dangle': ['error', 'never'],
     'semi': ['error', 'never'],
-    'eol-last': ['error', 'always']
+    'eol-last': ['error', 'always'],
+    'max-len': ['error', {
+      'code': 'never',
+      'tabWidth': 2
+    }]
   }
 }
