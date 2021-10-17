@@ -1,7 +1,7 @@
 ### Our custom ignores
 
 # We want the user to create a copy of the sample folder and update the variables
-src/config.json
+functions/src/config.json
 
 # We want the user to init firebase functions themselves to set these values
 .firebaserc
@@ -9,8 +9,8 @@ src/config.json
 ### Generic ignores
 
 # Compiled JavaScript files
-lib/**/*.js
-lib/**/*.js.map
+functions/lib/**/*.js
+functions/lib/**/*.js.map
 
 # TypeScript v1 declaration files
 typings/
