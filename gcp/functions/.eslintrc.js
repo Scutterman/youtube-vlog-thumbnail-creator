@@ -17,7 +17,7 @@ module.exports = {
     {
       files: ['*.ts', '*.tsx'], // Your TypeScript files extension
       parserOptions: {
-        project: ['./tsconfig.json'] // Specify it only for TypeScript files
+        project: ['gcp/functions/tsconfig.json'] // Specify it only for TypeScript files
       }
     }
   ],
@@ -32,14 +32,16 @@ module.exports = {
     'import'
   ],
   rules: {
-    'quotes': ['error', 'single'],
-    'import/no-unresolved': 0,
     'comma-dangle': ['error', 'never'],
-    'semi': ['error', 'never'],
     'eol-last': ['error', 'always'],
+    'import/no-unresolved': 0,
     'max-len': ['error', {
-      'code': 'never',
+      'code': 150,
       'tabWidth': 2
-    }]
+    }],
+    'object-curly-spacing': ['error', 'always'],
+    'quotes': ['error', 'single'],
+    'require-jsdoc': 'off',
+    'semi': ['error', 'never']
   }
 }

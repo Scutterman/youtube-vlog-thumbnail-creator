@@ -1,4 +1,4 @@
-import {auth} from '@googleapis/oauth2'
+import { auth } from '@googleapis/oauth2'
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager'
 import * as functions from 'firebase-functions'
 import * as config from './config.json'
