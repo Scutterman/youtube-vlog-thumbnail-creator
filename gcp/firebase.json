@@ -1,8 +1,8 @@
 {
   "functions": {
     "predeploy": [
-      "yarn lint",
-      "yarn build"
+      "cd functions && yarn lint",
+      "cd functions && yarn build"
     ]
   }
 }
