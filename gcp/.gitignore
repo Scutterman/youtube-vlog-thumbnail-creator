@@ -8,9 +8,8 @@ functions/src/config.json
 
 ### Generic ignores
 
-# Compiled JavaScript files
-functions/lib/**/*.js
-functions/lib/**/*.js.map
+# Compiled files
+functions/lib/**/*
 
 # TypeScript v1 declaration files
 typings/
