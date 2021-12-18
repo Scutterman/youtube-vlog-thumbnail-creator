@@ -17,12 +17,13 @@ module.exports = {
     {
       files: ['*.ts', '*.tsx'], // Your TypeScript files extension
       parserOptions: {
-        project: ['gcp/functions/tsconfig.json'] // Specify it only for TypeScript files
+        project: ['tsconfig.json'] // Specify it only for TypeScript files
       }
     }
   ],
   parserOptions: {
-    sourceType: 'module'
+    sourceType: 'module',
+    tsconfigRootDir: __dirname
   },
   ignorePatterns: [
     '/lib/**/*' // Ignore built files.
