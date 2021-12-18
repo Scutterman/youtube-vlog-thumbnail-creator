@@ -1,4 +1,5 @@
 {
   "clientId": "[ENTER CLIENT ID HERE]",
-  "apiBaseUrl": "[ENTER API URL HERE]"
+  "apiBaseUrl": "[ENTER API URL HERE]",
+  "apiSecretVersion": "1"
 }

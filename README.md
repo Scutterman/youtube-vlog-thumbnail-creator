@@ -13,9 +13,10 @@
 
 ## Backend deployment
 - In the source code, go to the `gcp` directory
-- Copy the `functions/config.sample.json` file to `functions/config.json`
+- Copy the `functions/src/config.sample.json` file to `functions/src/config.json`
   - The value of the `clientId` field is the Client Id from the youtube OAuth application
-  - The value of the `apiBaseUrl` field is the `trigger` of the function once it's deployed. This follows a predictable path if you know your function region, project id, and function name, but if in doubt you can deploy the function once with an empty string for this value so you can view the trigger information using the gcp functions dashboard
+  - The value of the `apiBaseUrl` field is the `trigger` of the function once it's deployed. This follows a predictable path if you know your function region, project id, and function name, but if in doubt you can deploy the function once with an empty string for this value so you can view the trigger information using the gcp functions dashboard.
+  - The value of the `apiSecretVersion` field is version of the secret that contains the youtube api secret key. If you added the secret and never changed it then this version will be "1" or "latest", otherwise the different version numbers can be seen when viewing the secret in google cloud console.
 - Copy the `.firebaserc.sample` file to `.firebaserc` and add your project id into it
 - In a command line, go to the `gcp/functions` directory
 - Run the `yarn` command to install all dependencies
