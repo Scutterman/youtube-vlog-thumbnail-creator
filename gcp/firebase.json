@@ -4,5 +4,6 @@
       "cd functions && yarn lint",
       "cd functions && yarn build"
     ]
-  }
+  },
+  "runtime": "nodjs16"
 }
