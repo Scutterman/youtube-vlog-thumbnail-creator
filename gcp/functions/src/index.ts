@@ -3,6 +3,18 @@ import { SecretManagerServiceClient } from '@google-cloud/secret-manager'
 import * as functions from 'firebase-functions'
 import * as config from './config.json'
 
+interface AccessTokenResponse {
+  // eslint-disable-next-line camelcase
+  access_token: string
+  // eslint-disable-next-line camelcase
+  expires_in: number
+  // eslint-disable-next-line camelcase
+  token_type: 'Bearer'
+  scope: string // space-delimited set of strings
+  // eslint-disable-next-line camelcase
+  refresh_token: string
+}
+
 let _secretManager: SecretManagerServiceClient | undefined
 
 function secretManager(): SecretManagerServiceClient {
@@ -51,7 +63,16 @@ export const youtubeRestApi = functions.https.onRequest(async (request, response
       url
     })
   } else if (request.path === '/tokenResponse') {
-    response.send('TODO:: script that posts message to webview')
+    const accessToken = request.body as AccessTokenResponse
+    response.send(`<html>
+      <body>
+        <script type="text/javascript">
+          window.addEventListener('DOMContentLoaded', (event) => {
+            host.postMessage(\`${ JSON.stringify(accessToken) }\`)
+          })
+        </script>
+      </body>
+    </html>`)
   } else {
     response.sendStatus(404)
   }

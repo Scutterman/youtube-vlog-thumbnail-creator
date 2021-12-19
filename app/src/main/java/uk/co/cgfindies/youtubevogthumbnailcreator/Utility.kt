@@ -40,7 +40,34 @@ class Utility {
             } else {
                 contract.launch(permission)
             }
+        }
 
+        fun getAuthentication(context: Context): AccessTokenResponse? {
+            val youtubePrefs = context.getSharedPreferences("youtube", Context.MODE_PRIVATE)
+            val accessToken = youtubePrefs.getString("accessToken", null)
+            val expiresIn = youtubePrefs.getInt("expiresIn", -1)
+            val tokenType = youtubePrefs.getString("tokenType", null)
+            val scope = youtubePrefs.getString("scope", null)
+            val refreshToken = youtubePrefs.getString("refreshToken", null)
+            // TODO:: Also store requested time so we know when "expires in" starts from
+
+            if (accessToken == null || expiresIn < 0 || tokenType == null || scope == null || refreshToken == null) {
+                return null
+            }
+
+            return AccessTokenResponse(accessToken, expiresIn, tokenType, scope, refreshToken)
+        }
+
+        fun setAuthentication(auth: AccessTokenResponse, context: Context) {
+            val youtubePrefs = context.getSharedPreferences("youtube", Context.MODE_PRIVATE)
+            youtubePrefs.edit()
+                .putString("accessToken", auth.accessToken)
+                .putInt("expiresIn", auth.expiresIn)
+                .putString("tokenType", auth.tokenType)
+                .putString("scope", auth.scope)
+                .putString("refreshToken", auth.refreshToken)
+                .apply()
+            // TODO:: Also store requested time so we know when "expires in" starts from
         }
     }
 }

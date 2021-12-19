@@ -24,6 +24,7 @@ import com.google.api.services.youtube.YouTube
 import com.google.api.services.youtube.YouTubeScopes
 import com.google.api.services.youtube.model.Channel
 import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.serialization.Serializable
 
 private const val PREF_ACCOUNT_NAME = "accountName"
 
@@ -48,6 +49,15 @@ class RequestAuthorizationActivityResultContract: ActivityResultContract<UserRec
         return resultCode == Activity.RESULT_OK
     }
 }
+
+@Serializable
+data class AccessTokenResponse(
+    val accessToken: String,
+    val expiresIn: Int,
+    val tokenType: String,
+    val scope: String,
+    val refreshToken: String
+)
 
 /**
  * TODO::At least some of this should be in a service so we don't have to deal with it getting destroyed
@@ -120,6 +130,10 @@ open class YoutubeBase: Fragment() {
      */
     private val resultsFromApi: Unit
         get() {
+            val auth = Utility.getAuthentication(requireContext())
+                ?: // TODO:: Somehow signal that we need to switch to the auth fragment
+                return
+
             if (!isGooglePlayServicesAvailable) {
                 Log.i("UPLOAD", "No Play Services")
                 acquireGooglePlayServices()

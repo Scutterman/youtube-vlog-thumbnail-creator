@@ -22,3 +22,4 @@
 - Run the `yarn` command to install all dependencies
 - Run `yarn firebase login` to log in to gcp
 - Run the `yarn deploy` command to deploy the rest api backend to your gcp project
+- In the android app, create a new `values` xml file in the `res/values` directory and add a string with the name `auth_api_url` and the same value as `apiBaseUrl` above
