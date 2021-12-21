@@ -105,6 +105,13 @@ open class YoutubeBase: Fragment() {
         ).setBackOff(ExponentialBackOff())
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (activity != null) {
+            resultsFromApi
+        }
+    }
+
     fun getChannelList(onResult: (List<Channel>?) -> Unit) {
         action = {
             MakeRequestTask<List<Channel>>(googleCredentialManager, { apiClient ->
@@ -131,8 +138,11 @@ open class YoutubeBase: Fragment() {
     private val resultsFromApi: Unit
         get() {
             val auth = Utility.getAuthentication(requireContext())
-                ?: // TODO:: Somehow signal that we need to switch to the auth fragment
+            if (auth == null) {
+                val intent = Intent(requireContext(), AuthActivity::class.java)
+                startActivity(intent)
                 return
+            }
 
             if (!isGooglePlayServicesAvailable) {
                 Log.i("UPLOAD", "No Play Services")

@@ -40,15 +40,11 @@ class MainActivity : AppCompatActivity() {
         populateProfileList()
 
         findViewById<Button>(R.id.btn_add_profile).setOnClickListener {
-            supportFragmentManager
-                .beginTransaction()
-                .setReorderingAllowed(true)
-                .replace(R.id.fragment_container_view, ProfileAddFragment.newInstance { profile ->
-                    profileAdapter.add(profile)
-                    profileAdapter.notifyDataSetInvalidated()
-                    changeFragment(ThumbnailFragment.newInstance(currentProfile.id), "ADD_THUMBNAIL_FRAGMENT")
-                }, "ADD_PROFILE_FRAGMENT")
-                .commit()
+            changeFragment(ProfileAddFragment.newInstance { profile ->
+                profileAdapter.add(profile)
+                profileAdapter.notifyDataSetInvalidated()
+                changeFragment(ThumbnailFragment.newInstance(currentProfile.id), "ADD_THUMBNAIL_FRAGMENT")
+            }, "ADD_PROFILE_FRAGMENT")
         }
 
         if (savedInstanceState == null) {

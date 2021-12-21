@@ -15,8 +15,6 @@ import kotlinx.serialization.json.Json
 import java.net.URI
 
 class AuthFragment : Fragment(), WebViewCompat.WebMessageListener {
-    var onAuthFinished: (auth: AccessTokenResponse) -> Unit = {}
-
     override fun onPostMessage(
         view: WebView,
         message: WebMessageCompat,
@@ -27,7 +25,6 @@ class AuthFragment : Fragment(), WebViewCompat.WebMessageListener {
         val data = message.data ?: throw Exception("No data received from webview")
         val auth = Json.decodeFromString<AccessTokenResponse>(data)
         Utility.setAuthentication(auth, requireContext())
-        onAuthFinished(auth)
     }
 
     override fun onCreateView(
@@ -48,10 +45,8 @@ class AuthFragment : Fragment(), WebViewCompat.WebMessageListener {
 
     companion object {
         @JvmStatic
-        fun newInstance(onAuthFinished: ((auth: AccessTokenResponse) -> Unit)?): AuthFragment {
-            val fragment = AuthFragment()
-            if (onAuthFinished != null) { fragment.onAuthFinished = onAuthFinished }
-            return fragment
+        fun newInstance(): AuthFragment {
+            return AuthFragment()
         }
     }
 }
