@@ -39,8 +39,7 @@ class AuthFragment : Fragment(), WebViewCompat.WebMessageListener {
         val url = getString(R.string.auth_api_url)
         val uri = URI(url)
         val webView = requireActivity().findViewById<WebView>(R.id.auth_web_view)
-        WebViewCompat.addWebMessageListener(webView, "host", setOf("${ uri.scheme }://${ uri.host }:${ uri.port }"), this)
-        webView.loadUrl(url)
+        webView.settings.javaScriptEnabled = true
     }
 
     companion object {
