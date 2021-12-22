@@ -65,8 +65,7 @@ export const youtubeRestApi = functions.https.onRequest(async (request, response
         return
       }
 
-      const oauth2Client = new auth.OAuth2(config.clientId, await getApiKey())
-
+      const oauth2Client = new auth.OAuth2(config.clientId, await getApiKey(), config.apiBaseUrl + '/tokenResponse')
       const { tokens } = await oauth2Client.getToken(code)
 
       response.send(`<html>
