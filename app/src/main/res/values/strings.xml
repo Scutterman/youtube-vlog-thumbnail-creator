@@ -33,4 +33,9 @@
     <string name="go_to_uploads">Go to Uploads</string>
 
     <string name="request_accounts_permission_message">This app needs to access your Google account (via Contacts) to display your Youtube channels.</string>
+    <string name="fragment_auth_no_auth_url">Could not authenticate with google</string>
+    <string name="fragment_auth_complete_auth_instructions">Paste your token in the text box and press the button to complete the authentication.</string>
+    <string name="fragment_auth_complete_authentication_button">Complete Authentication</string>
+    <string name="fragment_auth_paste_your_token_here">Paste your token here</string>
+    <string name="fragment_auth_token_invalid">The token entered was not valid, please try again</string>
 </resources>

@@ -1,14 +1,48 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
+<LinearLayout
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".AuthFragment">
-
-    <WebView
-        android:id="@+id/auth_web_view"
-        android:layout_height="match_parent"
+    android:orientation="vertical"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context=".AuthFragment"
+>
+    <TextView
         android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAlignment="center"
+        android:text="@string/fragment_auth_complete_auth_instructions"
+        android:layout_weight="0"
+    />
+    <Button
+        android:id="@+id/auth_complete_authentication"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/fragment_auth_complete_authentication_button"
+        android:layout_weight="0"
     />
 
-</FrameLayout>
+    <TextView
+        android:id="@+id/not_a_token"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAlignment="center"
+        android:text="@string/fragment_auth_token_invalid"
+        android:layout_weight="0"
+        android:visibility="invisible"
+    />
+
+    <EditText
+        android:id="@+id/auth_token"
+        android:layout_height="match_parent"
+        android:gravity="top"
+        android:layout_width="match_parent"
+        android:background="@color/cardview_dark_background"
+        android:textColor="@color/cardview_light_background"
+        android:layout_margin="10dp"
+        android:layout_weight="1"
+        android:autofillHints=""
+        android:inputType="text"
+        android:hint="@string/fragment_auth_paste_your_token_here"
+    />
+</LinearLayout>

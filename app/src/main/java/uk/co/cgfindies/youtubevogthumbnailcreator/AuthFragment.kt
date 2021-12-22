@@ -1,30 +1,36 @@
 package uk.co.cgfindies.youtubevogthumbnailcreator
 
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
+import android.view.View.VISIBLE
 import android.view.ViewGroup
-import android.webkit.WebView
+import android.widget.Button
+import android.widget.EditText
 import androidx.fragment.app.Fragment
-import androidx.webkit.JavaScriptReplyProxy
-import androidx.webkit.WebMessageCompat
-import androidx.webkit.WebViewCompat
+import com.android.volley.Request
+import com.android.volley.toolbox.JsonObjectRequest
+import com.android.volley.toolbox.Volley
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
-import java.net.URI
 
-class AuthFragment : Fragment(), WebViewCompat.WebMessageListener {
-    override fun onPostMessage(
-        view: WebView,
-        message: WebMessageCompat,
-        sourceOrigin: Uri,
-        isMainFrame: Boolean,
-        replyProxy: JavaScriptReplyProxy
-    ) {
-        val data = message.data ?: throw Exception("No data received from webview")
-        val auth = Json.decodeFromString<AccessTokenResponse>(data)
-        Utility.setAuthentication(auth, requireContext())
+
+class AuthFragment : Fragment() {
+    private fun onAuthCompleted() {
+        val data = requireActivity().findViewById<EditText>(R.id.auth_token).text.toString()
+        try {
+            val auth = Json.decodeFromString<AccessTokenResponse>(data)
+            Utility.setAuthentication(auth, requireContext())
+        } catch (_error: Exception) {
+            showError()
+        }
+    }
+
+    private fun showError() {
+        requireActivity().findViewById<View>(R.id.not_a_token).visibility = VISIBLE
     }
 
     override fun onCreateView(
@@ -36,13 +42,29 @@ class AuthFragment : Fragment(), WebViewCompat.WebMessageListener {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        requireActivity().findViewById<Button>(R.id.auth_complete_authentication).setOnClickListener { onAuthCompleted() }
+
         val url = getString(R.string.auth_api_url)
-        val uri = URI(url)
-        val webView = requireActivity().findViewById<WebView>(R.id.auth_web_view)
-        webView.settings.javaScriptEnabled = true
-        val port = if (uri.port > 0) ":" + uri.port.toString() else ""
-        WebViewCompat.addWebMessageListener(webView, "host", setOf("${ uri.scheme }://${ uri.host }$port"), this)
-        webView.loadUrl("$url/generateAuthUrl")
+        val authRequest = JsonObjectRequest(Request.Method.GET, "$url/generateAuthUrl", null,
+            { response ->
+                val authUrl = response?.getString("url")
+                if (authUrl == null) {
+                    Log.e("FETCH_AUTH_URL", "Auth URL Response was not in the correct format ${ response?.toString() ?: "NULL" }")
+                    Utility.showMessage(requireActivity(), R.string.fragment_auth_no_auth_url)
+                } else {
+                    val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(authUrl))
+                    startActivity(browserIntent)
+                }
+            },
+            { error ->
+                Log.e("FETCH_AUTH_URL", "Could not get auth url", error)
+                Utility.showMessage(requireActivity(), R.string.fragment_auth_no_auth_url)
+            }
+        )
+
+        val queue = Volley.newRequestQueue(requireContext())
+        queue.add(authRequest)
     }
 
     companion object {
