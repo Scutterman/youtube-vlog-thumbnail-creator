@@ -10,7 +10,7 @@
 - Use the "Create Credentials" button at the top to create an OAuth Client and set the type to "Web Application"
 - Go to the Security > Secret Manager product section and enable the Secret Manager API if it's not already enabled
 - Add the secret key from the youtube OAuth application to Secret Manager using `youtube-rest-api-secret` as the secret name
-- When you know the url of the api (see the `Backend deployment` step), add it as an `authroized redirect uri` to the credential
+- When you know the url of the api (see the `Backend deployment` step), add it as an `authroized redirect uri` to the credential with the path `/tokenResponse` appended to the end
 
 ## Backend deployment
 - In the source code, go to the `gcp` directory
