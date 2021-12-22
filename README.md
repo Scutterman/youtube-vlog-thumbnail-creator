@@ -10,6 +10,7 @@
 - Use the "Create Credentials" button at the top to create an OAuth Client and set the type to "Web Application"
 - Go to the Security > Secret Manager product section and enable the Secret Manager API if it's not already enabled
 - Add the secret key from the youtube OAuth application to Secret Manager using `youtube-rest-api-secret` as the secret name
+- Ensure the functions service account can access the secret by selecting the checkbox beside the secret you just created and then clicking `Add Principal`in the permissions box to the right so you can add the `Secret Manager Secret Accessor` role to the service account (if you don't know the service account, it is available in the function `Details` tab after you've deployed the function)
 - When you know the url of the api (see the `Backend deployment` step), add it as an `authroized redirect uri` to the credential with the path `/tokenResponse` appended to the end
 
 ## Backend deployment
