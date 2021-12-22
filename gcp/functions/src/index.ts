@@ -73,7 +73,7 @@ export const youtubeRestApi = functions.https.onRequest(async (request, response
               Copy the credentials into the app to finish authentication.
             </p>
             <p>
-              <textview id="credentials"></textview>
+              <textarea id="credentials"></textarea>
             </p>
           <script type="text/javascript">
             window.addEventListener('DOMContentLoaded', (event) => {
