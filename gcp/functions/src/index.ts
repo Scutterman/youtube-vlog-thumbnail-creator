@@ -41,39 +41,44 @@ async function getApiKey(): Promise<string> {
 }
 
 export const youtubeRestApi = functions.https.onRequest(async (request, response) => {
-  if (request.path === '/generateAuthUrl') {
-    const oauth2Client = new auth.OAuth2(
-        config.clientId,
-        await getApiKey(),
-        config.apiBaseUrl + '/tokenResponse'
-    )
+  try {
+    if (request.path === '/generateAuthUrl') {
+      const oauth2Client = new auth.OAuth2(
+          config.clientId,
+          await getApiKey(),
+          config.apiBaseUrl + '/tokenResponse'
+      )
 
-    const scopes = [
-      'https://www.googleapis.com/youtube/readonly',
-      'https://www.googleapis.com/youtube/upload'
-    ]
+      const scopes = [
+        'https://www.googleapis.com/youtube/readonly',
+        'https://www.googleapis.com/youtube/upload'
+      ]
 
-    const url = oauth2Client.generateAuthUrl({
-      // 'online' (default) or 'offline' (gets refresh_token)
-      access_type: 'offline',
-      scope: scopes
-    })
+      const url = oauth2Client.generateAuthUrl({
+        // 'online' (default) or 'offline' (gets refresh_token)
+        access_type: 'offline',
+        scope: scopes
+      })
 
-    response.send({
-      url
-    })
-  } else if (request.path === '/tokenResponse') {
-    const accessToken = request.body as AccessTokenResponse
-    response.send(`<html>
-      <body>
-        <script type="text/javascript">
-          window.addEventListener('DOMContentLoaded', (event) => {
-            host.postMessage(\`${ JSON.stringify(accessToken) }\`)
-          })
-        </script>
-      </body>
-    </html>`)
-  } else {
-    response.sendStatus(404)
+      response.send({
+        url
+      })
+    } else if (request.path === '/tokenResponse') {
+      const accessToken = request.body as AccessTokenResponse
+      response.send(`<html>
+        <body>
+          <script type="text/javascript">
+            window.addEventListener('DOMContentLoaded', (event) => {
+              host.postMessage(\`${ JSON.stringify(accessToken) }\`)
+            })
+          </script>
+        </body>
+      </html>`)
+    } else {
+      response.sendStatus(404)
+    }
+  } catch (e) {
+    console.error('Something went wrong with the rest api', e)
+    response.sendStatus(500)
   }
 })
