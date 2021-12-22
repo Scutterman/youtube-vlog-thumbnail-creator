@@ -7,9 +7,9 @@ import androidx.appcompat.app.AppCompatActivity
 class AuthActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        requestWindowFeature(Window.FEATURE_NO_TITLE)
         setContentView(R.layout.activity_auth)
         setFinishOnTouchOutside(false)
-        requestWindowFeature(Window.FEATURE_NO_TITLE)
 
         if (savedInstanceState == null) {
             val container = R.id.fragment_container_view
