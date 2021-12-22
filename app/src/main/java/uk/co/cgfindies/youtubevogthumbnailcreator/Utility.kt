@@ -45,29 +45,28 @@ class Utility {
         fun getAuthentication(context: Context): AccessTokenResponse? {
             val youtubePrefs = context.getSharedPreferences("youtube", Context.MODE_PRIVATE)
             val accessToken = youtubePrefs.getString("accessToken", null)
-            val expiresIn = youtubePrefs.getInt("expiresIn", -1)
+            val expiryDate = youtubePrefs.getLong("expiryDate", -1)
             val tokenType = youtubePrefs.getString("tokenType", null)
             val scope = youtubePrefs.getString("scope", null)
             val refreshToken = youtubePrefs.getString("refreshToken", null)
             // TODO:: Also store requested time so we know when "expires in" starts from
 
-            if (accessToken == null || expiresIn < 0 || tokenType == null || scope == null || refreshToken == null) {
+            if (accessToken == null || expiryDate < 0 || tokenType == null || scope == null || refreshToken == null) {
                 return null
             }
 
-            return AccessTokenResponse(accessToken, expiresIn, tokenType, scope, refreshToken)
+            return AccessTokenResponse(accessToken, expiryDate, tokenType, scope, refreshToken)
         }
 
         fun setAuthentication(auth: AccessTokenResponse, context: Context) {
             val youtubePrefs = context.getSharedPreferences("youtube", Context.MODE_PRIVATE)
             youtubePrefs.edit()
-                .putString("accessToken", auth.accessToken)
-                .putInt("expiresIn", auth.expiresIn)
-                .putString("tokenType", auth.tokenType)
+                .putString("accessToken", auth.access_token)
+                .putLong("expiryDate", auth.expiry_date)
+                .putString("tokenType", auth.token_type)
                 .putString("scope", auth.scope)
-                .putString("refreshToken", auth.refreshToken)
+                .putString("refreshToken", auth.refresh_token)
                 .apply()
-            // TODO:: Also store requested time so we know when "expires in" starts from
         }
     }
 }

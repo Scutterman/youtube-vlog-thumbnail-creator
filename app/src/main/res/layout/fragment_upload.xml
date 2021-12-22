@@ -15,11 +15,17 @@
         android:orientation="vertical"
         app:layout_constraintVertical_weight="1"
         >
-        <TextView
-            android:id="@+id/upload_output"
+
+        <ScrollView
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_weight="1"/>
+            android:layout_weight="1">
+            <TextView
+                android:id="@+id/upload_output"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+        </ScrollView>
+
         <Button
             android:id="@+id/btn_upload_video"
             android:layout_width="wrap_content"
