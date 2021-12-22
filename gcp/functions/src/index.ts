@@ -67,9 +67,24 @@ export const youtubeRestApi = functions.https.onRequest(async (request, response
       const accessToken = request.body as AccessTokenResponse
       response.send(`<html>
         <body>
+          <div id="hideUntilReady" style="display: none">
+            <p>
+              <strong>Credentials</strong> <button id="copyCredentials">Copy</button><br />
+              Copy the credentials into the app to finish authentication.
+            </p>
+            <p>
+              <textview id="credentials"></textview>
+            </p>
           <script type="text/javascript">
             window.addEventListener('DOMContentLoaded', (event) => {
-              host.postMessage(\`${ JSON.stringify(accessToken) }\`)
+              document.querySelector('#credentials').value = \`${ JSON.stringify(accessToken) }\`
+              document.querySelector('#copyCredentials').addEventListener('click', e => {
+                e.preventDefault()
+                navigator.clipboard.writeText(document.querySelector('#credentials').value)
+                alert("Credentials have been copied to the clipboard. Switch back to the app to complete the authentication.")
+              })
+              
+              document.querySelector('#hideUntilReady').style.display = 'block'
             })
           </script>
         </body>
