@@ -50,8 +50,8 @@ export const youtubeRestApi = functions.https.onRequest(async (request, response
       )
 
       const scopes = [
-        'https://www.googleapis.com/youtube/readonly',
-        'https://www.googleapis.com/youtube/upload'
+        'https://www.googleapis.com/auth/youtube.readonly',
+        'https://www.googleapis.com/auth/youtube.upload'
       ]
 
       const url = oauth2Client.generateAuthUrl({
