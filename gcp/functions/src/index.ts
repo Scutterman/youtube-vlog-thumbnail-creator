@@ -92,6 +92,21 @@ export const youtubeRestApi = functions.https.onRequest(async (request, response
           </script>
         </body>
       </html>`)
+    } else if (request.path === '/refreshToken') {
+      const refreshToken = request.body.refresh_token as string | undefined
+      if (refreshToken == null) {
+        console.error('refresh token is missing', request.body)
+        response.sendStatus(401)
+        return
+      }
+
+      const oauth2Client = new auth.OAuth2(config.clientId, await getApiKey(), config.apiBaseUrl + '/tokenResponse')
+      oauth2Client.setCredentials({
+        refresh_token: refreshToken
+      })
+
+      const { token } = await oauth2Client.getAccessToken()
+      response.send(token)
     } else {
       response.sendStatus(404)
     }
