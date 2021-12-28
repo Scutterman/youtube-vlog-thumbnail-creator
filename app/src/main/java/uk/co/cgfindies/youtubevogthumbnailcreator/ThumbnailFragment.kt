@@ -232,12 +232,12 @@ class ThumbnailFragment : Fragment() {
         val ctx = this.requireContext()
         @Suppress("BlockingMethodInNonBlockingContext")
         (withContext(Dispatchers.Default) {
-        extractor.setDataSource(
-            ctx,
-            uri,
-            null
-        )
-    })
+            extractor.setDataSource(
+                ctx,
+                uri,
+                null
+            )
+        })
 
         val processor = VideoProcessor(extractor)
 

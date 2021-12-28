@@ -22,7 +22,7 @@ abstract class CoroutinesAsyncTask<Params, Progress, Result>(private val taskNam
     abstract fun doInBackground(vararg params: Params?): Result?
     open fun onProgressUpdate(vararg values: Progress?) {}
     open fun onPostExecute(result: Result?) {}
-    open fun onPreExecute() {}
+    open suspend fun onPreExecute() {}
     open fun onCancelled(e: Exception?) {}
     private var isCancelled = false
 

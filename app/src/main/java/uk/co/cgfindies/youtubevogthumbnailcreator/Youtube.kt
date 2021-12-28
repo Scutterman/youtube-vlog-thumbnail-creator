@@ -12,9 +12,10 @@ import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.services.youtube.YouTube
 import com.google.api.services.youtube.model.Channel
 import com.google.api.services.youtube.model.PlaylistItem
-import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
-import java.io.IOException
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 @Serializable
 data class AccessTokenResponse(
@@ -95,19 +96,17 @@ open class YoutubeBase: Fragment() {
      */
     private val resultsFromApi: Unit
         get() {
-            val auth = Utility.getAuthentication(requireContext())
-            if (auth == null) {
-                val intent = Intent(requireContext(), AuthActivity::class.java)
-                startActivity(intent)
-                return
-            }
-
-            if (!networkMonitor.isConnected) {
-                Log.i("UPLOAD", "No Network")
-                Utility.showMessage(requireActivity(), R.string.network_unavailable)
-            } else {
-                Log.i("UPLOAD", "Make request task")
-                action?.invoke()
+            Utility.getAuthentication(requireContext()) { auth ->
+                if (auth == null) {
+                    val intent = Intent(requireContext(), AuthActivity::class.java)
+                    startActivity(intent)
+                } else if (!networkMonitor.isConnected) {
+                    Log.i("UPLOAD", "No Network")
+                    Utility.showMessage(requireActivity(), R.string.network_unavailable)
+                } else {
+                    Log.i("UPLOAD", "Make request task")
+                    action?.invoke()
+                }
             }
         }
 
@@ -120,16 +119,7 @@ open class YoutubeBase: Fragment() {
             CoroutinesAsyncTask<Void?, Void?, Result>("MakeYoutubeRequest"),
         HttpRequestInitializer {
 
-        private val apiClient: YouTube
-
-        init {
-            Log.i("INIT", "Starting request task init")
-            val transport = AndroidHttp.newCompatibleTransport()
-            val jsonFactory: JsonFactory = JacksonFactory.getDefaultInstance()
-            apiClient = YouTube.Builder(transport, jsonFactory, this)
-                .setApplicationName("YouTube Vlog Thumbnail")
-                .build()
-        }
+        var auth: AccessTokenResponse? = null
 
         /**
          * Background task to call YouTube Data API.
@@ -137,7 +127,13 @@ open class YoutubeBase: Fragment() {
          */
         override fun doInBackground(vararg params: Void?): Result? {
             return try {
-                Log.i("UPLOAD", "Trying getting data")
+                Log.i("UPLOAD", "Setting up the api client")
+                val transport = AndroidHttp.newCompatibleTransport()
+                val jsonFactory: JsonFactory = JacksonFactory.getDefaultInstance()
+                val apiClient = YouTube.Builder(transport, jsonFactory, this)
+                    .setApplicationName("YouTube Vlog Thumbnail")
+                    .build()
+                Log.i("UPLOAD", "Trying to get the data")
                 fetchData(apiClient)
             } catch (e: Exception) {
                 Log.e("UPLOAD", "do background error", e)
@@ -146,14 +142,19 @@ open class YoutubeBase: Fragment() {
             }
         }
 
-        override fun onPreExecute() {
+        override suspend fun onPreExecute(): Unit = suspendCoroutine { cont ->
             Log.i("UPLOAD", "Pre execute")
+            Utility.getAuthentication(requireContext()) { auth ->
+                Log.i("UPLOAD", "Fetched auth")
+                this.auth = auth
+                Log.i("UPLOAD", "Resuming task flow")
+                cont.resume(Unit)
+            }
         }
 
         override fun onPostExecute(result: Result?) {
             Log.i("UPLOAD", "Post execute")
             onResult(result)
-
         }
 
         override fun onCancelled(e: java.lang.Exception?) {
@@ -167,31 +168,37 @@ open class YoutubeBase: Fragment() {
         }
 
         override fun initialize(request: HttpRequest?) {
-            if (request == null) { return }
-            val handler = RequestHandler()
+            Log.i("UPLOAD", "Initializing the request")
+            if (request == null) {
+                Log.i("UPLOAD", "No request, nothing to do")
+                return
+            }
+
+            Log.i("UPLOAD", "Checking the auth")
+            val auth = this.auth ?: throw Exception("Set authentication before running a request")
+
+            Log.i("UPLOAD", "Setting request handler")
+            val handler = RequestHandler(auth)
             request.interceptor = handler
             request.unsuccessfulResponseHandler = handler
+            Log.i("UPLOAD", "Initialize complete")
         }
     }
 
-    private inner class RequestHandler : HttpExecuteInterceptor,
+    private inner class RequestHandler (val auth: AccessTokenResponse) : HttpExecuteInterceptor,
         HttpUnsuccessfulResponseHandler {
-        var received401 = false
 
-        @Throws(IOException::class)
         override fun intercept(request: HttpRequest) {
-            val auth = Utility.getAuthentication(requireContext()) ?: throw Exception("Set authentication before running a request")
+            Log.i("UPLOAD", "Intercepted the request, adding an access token")
             request.headers.authorization = "Bearer ${ auth.access_token }"
         }
 
         override fun handleResponse(
             request: HttpRequest, response: HttpResponse, supportsRetry: Boolean
         ): Boolean {
-            if (response.statusCode == 401 && !received401) {
-                received401 = true
-                // TODO:: Handle refresh
-                return true
-            }
+            Log.i("UPLOAD", "Request failed with the status" + response.statusCode.toString())
+            // If the response was 401, the problem should be solved by the user retrying
+            // Otherwise, we can't fix it anyway
             return false
         }
     }
