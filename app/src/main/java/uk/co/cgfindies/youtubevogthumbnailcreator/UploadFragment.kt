@@ -7,8 +7,10 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.ListView
 import android.widget.TextView
 import androidx.fragment.app.Fragment
+import com.google.api.services.youtube.model.PlaylistItem
 import kotlinx.coroutines.DelicateCoroutinesApi
 
  /**
@@ -38,7 +40,7 @@ class UploadFragment : YoutubeBase() {
 
     private fun showChannels() {
         Log.i("UPLOAD", "Showing channels")
-        setOutputText("", true)
+        setOutputText("")
 
         getChannelList { channels ->
             if (channels == null || channels.isEmpty()) {
@@ -47,10 +49,9 @@ class UploadFragment : YoutubeBase() {
             } else {
                 Log.i("UPLOAD", "Got data")
                 val channelSummary = channels.map { channel ->
-                    "This channel's ID is " + channel.id + ". " +
-                    "Its title is '" + channel.snippet.title + "', " +
-                    "and it has " + channel.statistics.viewCount + " views."
+                    requireContext().resources.getString(R.string.upload_channel_description, channel.snippet.title, channel.statistics.viewCount)
                 }
+
                 setOutputText("Data retrieved using the YouTube Data API:\n\n" + TextUtils.join("\n\n", channelSummary))
 
                 getPlaylistVideos("UUQLfY7-dNbkkQKXVkEttSKA") { items ->
@@ -59,27 +60,24 @@ class UploadFragment : YoutubeBase() {
                         Utility.showMessage(requireActivity(), R.string.no_results)
                     } else {
                         Log.i("VIDEOS", "Got data")
-                        val videos = items.map { video ->
-                            "This video's title is '" + video.snippet.title + "', " +
-                             "and it has " + video.status + " views."
-                        }
-                        setOutputText(
-                            "Data retrieved using the YouTube Data API:\n\n" + TextUtils.join(
-                                "\n\n",
-                                videos
-                            )
-                        )
+                        populateProfileList(items.toMutableList())
                     }
+
                 }
             }
         }
     }
 
-    private fun setOutputText(text: String, overwrite: Boolean = false) {
-        val view = requireView().findViewById<TextView>(R.id.upload_output)
-        val initial = if (overwrite) "" else view.text.toString()
-        view.text = initial + text
+    private fun setOutputText(text: String) {
+        requireView().findViewById<TextView>(R.id.upload_output).text = text
     }
+
+     private fun populateProfileList(videos: MutableList<PlaylistItem>) {
+         val list = requireActivity().findViewById<ListView>(R.id.video_list)
+         val videoAdapter = VideoAdapter(requireContext(), videos)
+         list.adapter = videoAdapter
+         Log.i("ProfileAdapter", "Done populating video list")
+     }
 
     companion object {
         /**

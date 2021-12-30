@@ -10,8 +10,9 @@
         <entry key="..\:/vcs/youtube-vlog-thumbnail-creator/app/src/main/res/layout/activity_auth.xml" value="0.23143115942028986" />
         <entry key="..\:/vcs/youtube-vlog-thumbnail-creator/app/src/main/res/layout/activity_main.xml" value="0.42604166666666665" />
         <entry key="..\:/vcs/youtube-vlog-thumbnail-creator/app/src/main/res/layout/fragment_auth.xml" value="0.25" />
-        <entry key="..\:/vcs/youtube-vlog-thumbnail-creator/app/src/main/res/layout/fragment_upload.xml" value="0.4119791666666667" />
+        <entry key="..\:/vcs/youtube-vlog-thumbnail-creator/app/src/main/res/layout/fragment_upload.xml" value="0.25" />
         <entry key="..\:/vcs/youtube-vlog-thumbnail-creator/app/src/main/res/layout/listview_item_profile.xml" value="0.42083333333333334" />
+        <entry key="..\:/vcs/youtube-vlog-thumbnail-creator/app/src/main/res/layout/listview_item_video.xml" value="0.2246376811594203" />
         <entry key="..\:/vcs/youtube-vlog-thumbnail-creator/app/src/main/res/layout/profile_add_fragment.xml" value="0.19157608695652173" />
         <entry key="..\:/vcs/youtube-vlog-thumbnail-creator/app/src/main/res/layout/thumbnail_fragment.xml" value="0.1933876811594203" />
         <entry key="..\:/vcs/youtube-vlog-thumbnail-creator/app/src/main/res/menu/activity_main_toolbar.xml" value="0.34479166666666666" />
