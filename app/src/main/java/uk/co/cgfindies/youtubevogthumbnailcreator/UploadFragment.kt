@@ -60,7 +60,7 @@ class UploadFragment : YoutubeBase() {
                         Utility.showMessage(requireActivity(), R.string.no_results)
                     } else {
                         Log.i("VIDEOS", "Got data")
-                        populateProfileList(items.toMutableList())
+                        populateVideoList(items.toMutableList())
                     }
 
                 }
@@ -72,7 +72,7 @@ class UploadFragment : YoutubeBase() {
         requireView().findViewById<TextView>(R.id.upload_output).text = text
     }
 
-     private fun populateProfileList(videos: MutableList<PlaylistItem>) {
+     private fun populateVideoList(videos: MutableList<PlaylistItem>) {
          val list = requireActivity().findViewById<ListView>(R.id.video_list)
          val videoAdapter = VideoAdapter(requireContext(), videos)
          list.adapter = videoAdapter
