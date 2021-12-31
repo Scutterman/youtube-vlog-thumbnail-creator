@@ -2,6 +2,34 @@ import { auth } from '@googleapis/oauth2'
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager'
 import * as functions from 'firebase-functions'
 import * as config from './config.json'
+import * as admin from 'firebase-admin'
+import { Credentials } from 'googleapis-common/node_modules/google-auth-library'
+
+admin.initializeApp()
+
+enum StoredTokenStatus {
+  PENDING_AUTH = 'PENDING_AUTH',
+  HAS_AUTH = 'HAS_AUTH'
+}
+
+interface StoredToken {
+  status: StoredTokenStatus
+  tokens?: Credentials
+}
+
+type StoredTokenDocument = FirebaseFirestore.CollectionReference<StoredToken>
+
+let _tokenTemporaryStorage: StoredTokenDocument | undefined
+
+function tokenTemporaryStorage(): StoredTokenDocument {
+  if (_tokenTemporaryStorage == null) {
+    _tokenTemporaryStorage = admin
+      .firestore()
+      .collection('tokenTemporaryStorage') as StoredTokenDocument
+  }
+
+  return _tokenTemporaryStorage
+}
 
 let _secretManager: SecretManagerServiceClient | undefined
 
@@ -32,9 +60,9 @@ export const youtubeRestApi = functions.https.onRequest(async (request, response
   try {
     if (request.path === '/generateAuthUrl') {
       const oauth2Client = new auth.OAuth2(
-          config.clientId,
-          await getApiKey(),
-          config.apiBaseUrl + '/tokenResponse'
+        config.clientId,
+        await getApiKey(),
+        config.apiBaseUrl + '/tokenResponse'
       )
 
       const scopes = [
@@ -42,18 +70,25 @@ export const youtubeRestApi = functions.https.onRequest(async (request, response
         'https://www.googleapis.com/auth/youtube.upload'
       ]
 
+      const doc = await tokenTemporaryStorage().add({
+        status: StoredTokenStatus.PENDING_AUTH
+      })
+
       const url = oauth2Client.generateAuthUrl({
         // 'online' (default) or 'offline' (gets refresh_token)
         access_type: 'offline',
-        scope: scopes
+        scope: scopes,
+        state: doc.id
       })
 
       response.send({
-        url
+        url,
+        tokenId: doc.id
       })
     } else if (request.path === '/tokenResponse') {
       const error = request.query['error'] as string | undefined
       const code = request.query['code'] as string | undefined
+      const state = request.query['state'] as string | undefined
 
       if (error != null) {
         console.error('Error in authentication', error, request.query)
@@ -63,35 +98,51 @@ export const youtubeRestApi = functions.https.onRequest(async (request, response
         console.error('No code returned from api', request.query)
         response.sendStatus(401)
         return
+      } else if (state == null) {
+        console.error('No state returned from api', request.query)
+        response.sendStatus(401)
+        return
+      }
+
+      const doc = await tokenTemporaryStorage().doc(state).get()
+      const data = doc.data()
+      if (!doc.exists || data == null) {
+        console.error('Invalid state', state)
+        response.sendStatus(401)
+        return
       }
 
       const oauth2Client = new auth.OAuth2(config.clientId, await getApiKey(), config.apiBaseUrl + '/tokenResponse')
       const { tokens } = await oauth2Client.getToken(code)
+      await doc.ref.update({ status: StoredTokenStatus.HAS_AUTH, tokens } as Partial<StoredToken>)
 
-      response.send(`<html>
-        <body>
-          <div id="hideUntilReady" style="display: none">
-            <p>
-              <strong>Credentials</strong> <button id="copyCredentials">Copy</button><br />
-              Copy the credentials into the app to finish authentication.
-            </p>
-            <p>
-              <textarea id="credentials"></textarea>
-            </p>
-          <script type="text/javascript">
-            window.addEventListener('DOMContentLoaded', (event) => {
-              document.querySelector('#credentials').value = \`${ JSON.stringify(tokens) }\`
-              document.querySelector('#copyCredentials').addEventListener('click', e => {
-                e.preventDefault()
-                navigator.clipboard.writeText(document.querySelector('#credentials').value)
-                alert("Credentials have been copied to the clipboard. Switch back to the app to complete the authentication.")
-              })
-              
-              document.querySelector('#hideUntilReady').style.display = 'block'
-            })
-          </script>
-        </body>
-      </html>`)
+      response.send('<html><body>Authentication successful. Close this window and return to the application</body></html>')
+    } else if (request.path === '/getStoredToken') {
+      const tokenId = request.query['tokenId'] as string | undefined
+      if (tokenId == null) {
+        console.error('Token id required in order to fetch stored token', request.query)
+        response.sendStatus(401)
+        return
+      }
+
+      const doc = await tokenTemporaryStorage().doc(tokenId).get()
+      const data = doc.data()
+      if (!doc.exists || data == null) {
+        console.error('No token data available', tokenId)
+        response.sendStatus(401)
+        return
+      }
+
+      if (data.status !== StoredTokenStatus.HAS_AUTH || data.tokens == null) {
+        console.error('No token available', data.status)
+        response.sendStatus(401)
+        return
+      }
+
+      // We don't want to keep tokens once they've been requested once.
+      await doc.ref.delete()
+
+      response.send(data.tokens)
     } else if (request.path === '/refreshToken') {
       const refreshToken = request.body.refreshToken as string | undefined
       if (refreshToken == null) {
