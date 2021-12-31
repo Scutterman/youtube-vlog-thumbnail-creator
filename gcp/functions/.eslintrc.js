@@ -36,6 +36,7 @@ module.exports = {
     'comma-dangle': ['error', 'never'],
     'eol-last': ['error', 'always'],
     'import/no-unresolved': 0,
+    'indent': ['error', 2],
     'max-len': ['error', {
       'code': 150,
       'tabWidth': 2
