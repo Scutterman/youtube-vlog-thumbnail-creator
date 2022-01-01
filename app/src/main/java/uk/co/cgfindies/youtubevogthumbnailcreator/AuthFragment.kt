@@ -65,7 +65,7 @@ class AuthFragment : Fragment(), DefaultLifecycleObserver {
                     Utility.setAuthentication(auth, requireContext())
                     tokenId = null
                 } catch (_error: Exception) {
-                    Log.e("FETCH_TOKEN", "Error while decoding the token", e)
+                    Log.e("FETCH_TOKEN", "Error while decoding the token", _error)
                     showError()
                 }
             },
