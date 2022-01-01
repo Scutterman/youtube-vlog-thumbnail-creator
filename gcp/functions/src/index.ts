@@ -91,15 +91,15 @@ export const youtubeRestApi = functions.https.onRequest(async (request, response
       const state = request.query['state'] as string | undefined
 
       if (error != null) {
-        console.error('Error in authentication', error, request.query)
+        functions.logger.error('Error in authentication', error, request.query)
         response.status(401).send('401: ' + error)
         return
       } else if (code == null) {
-        console.error('No code returned from api', request.query)
+        functions.logger.error('No code returned from api', request.query)
         response.sendStatus(401)
         return
       } else if (state == null) {
-        console.error('No state returned from api', request.query)
+        functions.logger.error('No state returned from api', request.query)
         response.sendStatus(401)
         return
       }
@@ -107,7 +107,7 @@ export const youtubeRestApi = functions.https.onRequest(async (request, response
       const doc = await tokenTemporaryStorage().doc(state).get()
       const data = doc.data()
       if (!doc.exists || data == null) {
-        console.error('Invalid state', state)
+        functions.logger.error('Invalid state', state)
         response.sendStatus(401)
         return
       }
@@ -120,7 +120,7 @@ export const youtubeRestApi = functions.https.onRequest(async (request, response
     } else if (request.path === '/getStoredToken') {
       const tokenId = request.query['tokenId'] as string | undefined
       if (tokenId == null) {
-        console.error('Token id required in order to fetch stored token', request.query)
+        functions.logger.error('Token id required in order to fetch stored token', request.query)
         response.sendStatus(401)
         return
       }
@@ -128,13 +128,13 @@ export const youtubeRestApi = functions.https.onRequest(async (request, response
       const doc = await tokenTemporaryStorage().doc(tokenId).get()
       const data = doc.data()
       if (!doc.exists || data == null) {
-        console.error('No token data available', tokenId)
+        functions.logger.error('No token data available', tokenId)
         response.sendStatus(401)
         return
       }
 
       if (data.status !== StoredTokenStatus.HAS_AUTH || data.tokens == null) {
-        console.error('No token available', data.status)
+        functions.logger.error('No token available', data.status)
         response.sendStatus(401)
         return
       }
@@ -146,7 +146,7 @@ export const youtubeRestApi = functions.https.onRequest(async (request, response
     } else if (request.path === '/refreshToken') {
       const refreshToken = request.body.refreshToken as string | undefined
       if (refreshToken == null) {
-        console.error('refresh token is missing', request.body)
+        functions.logger.error('refresh token is missing', request.body)
         response.sendStatus(401)
         return
       }
@@ -162,7 +162,7 @@ export const youtubeRestApi = functions.https.onRequest(async (request, response
       response.sendStatus(404)
     }
   } catch (e) {
-    console.error('Something went wrong with the rest api', e)
+    functions.logger.error('Something went wrong with the rest api', e)
     response.sendStatus(500)
   }
 })
