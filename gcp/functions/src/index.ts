@@ -14,7 +14,7 @@ enum StoredTokenStatus {
 
 interface StoredToken {
   status: StoredTokenStatus
-  tokens?: Credentials
+  tokens: Credentials | null
 }
 
 type StoredTokenDocument = FirebaseFirestore.CollectionReference<StoredToken>
@@ -71,11 +71,12 @@ export const youtubeRestApi = functions.https.onRequest(async (request, response
       ]
 
       const doc = await tokenTemporaryStorage().add({
-        status: StoredTokenStatus.PENDING_AUTH
+        status: StoredTokenStatus.PENDING_AUTH,
+        tokens: null
       })
 
       const url = oauth2Client.generateAuthUrl({
-        // 'online' (default) or 'offline' (gets refresh_token)
+        // offline means include the refresh_token
         access_type: 'offline',
         scope: scopes,
         state: doc.id
@@ -114,7 +115,14 @@ export const youtubeRestApi = functions.https.onRequest(async (request, response
 
       const oauth2Client = new auth.OAuth2(config.clientId, await getApiKey(), config.apiBaseUrl + '/tokenResponse')
       const { tokens } = await oauth2Client.getToken(code)
+
+      try {
       await doc.ref.update({ status: StoredTokenStatus.HAS_AUTH, tokens } as Partial<StoredToken>)
+      } catch (e) {
+        functions.logger.error('Could not update the doc', e)
+        response.sendStatus(401)
+        return
+      }
 
       response.send('<html><body>Authentication successful. Close this window and return to the application</body></html>')
     } else if (request.path === '/getStoredToken') {
