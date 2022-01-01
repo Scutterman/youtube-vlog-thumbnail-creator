@@ -14,7 +14,7 @@ class AuthActivity : AppCompatActivity() {
         if (savedInstanceState == null) {
             val container = R.id.fragment_container_view
             val transaction = supportFragmentManager.beginTransaction().setReorderingAllowed(true)
-            transaction.add(container, AuthFragment.newInstance(), "ADD_AUTH_FRAGMENT")
+            transaction.add(container, AuthFragment.newInstance() { finish() }, "ADD_AUTH_FRAGMENT")
             transaction.commit()
         }
     }

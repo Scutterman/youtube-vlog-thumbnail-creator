@@ -9,7 +9,6 @@ import android.view.View
 import android.view.View.VISIBLE
 import android.view.ViewGroup
 import android.widget.Button
-import android.widget.EditText
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
@@ -22,17 +21,8 @@ import kotlinx.serialization.json.Json
 
 
 class AuthFragment : Fragment(), DefaultLifecycleObserver {
+    private var onAuthComplete: () -> Unit = { }
     private var tokenId: String? = null
-
-    private fun onAuthCompleted() {
-        val data = requireActivity().findViewById<EditText>(R.id.auth_token).text.toString()
-        try {
-            val auth = Json.decodeFromString<AccessTokenResponse>(data)
-            Utility.setAuthentication(auth, requireContext())
-        } catch (_error: Exception) {
-            showError()
-        }
-    }
 
     private fun showError() {
         requireActivity().findViewById<View>(R.id.not_a_token).visibility = VISIBLE
@@ -64,6 +54,7 @@ class AuthFragment : Fragment(), DefaultLifecycleObserver {
                     val auth = Json.decodeFromString<AccessTokenResponse>(data)
                     Utility.setAuthentication(auth, requireContext())
                     tokenId = null
+                    onAuthComplete()
                 } catch (_error: Exception) {
                     Log.e("FETCH_TOKEN", "Error while decoding the token", _error)
                     showError()
@@ -91,8 +82,15 @@ class AuthFragment : Fragment(), DefaultLifecycleObserver {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        requireActivity().findViewById<Button>(R.id.auth_complete_authentication).setOnClickListener { onAuthCompleted() }
+        val retry = requireActivity().findViewById<Button>(R.id.auth_retry)
+        retry.setOnClickListener {
+            doAuth()
+        }
 
+        doAuth()
+    }
+
+    private fun doAuth() {
         val url = getString(R.string.auth_api_url)
         val authRequest = JsonObjectRequest(Request.Method.GET, "$url/generateAuthUrl", null,
             { response ->
@@ -118,8 +116,12 @@ class AuthFragment : Fragment(), DefaultLifecycleObserver {
 
     companion object {
         @JvmStatic
-        fun newInstance(): AuthFragment {
-            return AuthFragment()
+        fun newInstance(onAuthComplete: (() -> Unit)? = null): AuthFragment {
+            val fragment = AuthFragment()
+            if (onAuthComplete != null) {
+                fragment.onAuthComplete = onAuthComplete
+            }
+            return fragment
         }
     }
 }

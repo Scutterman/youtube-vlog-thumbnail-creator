@@ -15,10 +15,10 @@
         android:layout_weight="0"
     />
     <Button
-        android:id="@+id/auth_complete_authentication"
+        android:id="@+id/auth_retry"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/fragment_auth_complete_authentication_button"
+        android:text="@string/fragment_auth_retry_authentication_button"
         android:layout_weight="0"
     />
 
@@ -30,19 +30,5 @@
         android:text="@string/fragment_auth_token_invalid"
         android:layout_weight="0"
         android:visibility="invisible"
-    />
-
-    <EditText
-        android:id="@+id/auth_token"
-        android:layout_height="match_parent"
-        android:gravity="top"
-        android:layout_width="match_parent"
-        android:background="@color/cardview_dark_background"
-        android:textColor="@color/cardview_light_background"
-        android:layout_margin="10dp"
-        android:layout_weight="1"
-        android:autofillHints=""
-        android:inputType="text"
-        android:hint="@string/fragment_auth_paste_your_token_here"
     />
 </LinearLayout>
