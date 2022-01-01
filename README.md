@@ -4,6 +4,8 @@
 
 ## GCP Setup
 - Log in to gcp at console.cloud.google.com
+- Go to the Cloud Firestore screen and enable the API implementation https://console.developers.google.com/apis/api/firestore.googleapis.com/overview
+- Go to https://console.cloud.google.com/firestore/welcome and enable a Native Mode firestore database
 - Go to the APIs & Services screen https://console.cloud.google.com/apis/dashboard
 - If the Youtube API isn't listed in the table, find it in the library and enable it https://console.cloud.google.com/apis/library
 - Within the Youtube API dashboard, go to the API credentials page https://console.cloud.google.com/apis/api/youtube.googleapis.com/credentials
