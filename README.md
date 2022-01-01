@@ -27,3 +27,8 @@
 - Run `yarn firebase login` to log in to gcp
 - Run the `yarn deploy` command to deploy the rest api backend to your gcp project
 - In the android app, create a new `values` xml file in the `res/values` directory and add a string with the name `auth_api_url` and the same value as `apiBaseUrl` above
+
+## Auth Expiration
+While the youtube oauth app is still in the "testing" state, any users will need to provide consent to the app every 7 days.
+You can move your app into a different state by going to the `OAuth Consent Screen` section of the gcp `APIs and Services` (https://console.cloud.google.com/apis/credentials/consent) product and clicking the `Publish` button.
+Anecdotal evidence suggests that even moving the app status to `Needs verification` will be enough to ensure the app does not need to re-acquire consent every 7 days, if you only plan on using it for a personal project (https://stackoverflow.com/a/65936387/989477).
