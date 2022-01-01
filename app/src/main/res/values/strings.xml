@@ -24,6 +24,7 @@
     <string name="profile_save">Save Profile</string>
     <string name="profile_add_face_bounds_explanation">Enter the values for the area where the face will be placed on the background</string>
     <string name="upload_video">Upload Video</string>
+    <string name="reset_credentials">Reset Credentials</string>
 
     <string name="network_unavailable">No network connection available</string>
     <string name="no_results">No results returned</string>

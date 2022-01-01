@@ -118,5 +118,16 @@ class Utility {
                 .putString("refreshToken", auth.refresh_token)
                 .apply()
         }
+
+        fun resetCredentials(context: Context) {
+            val youtubePrefs = context.getSharedPreferences("youtube", Context.MODE_PRIVATE)
+            youtubePrefs.edit()
+                .remove("accessToken")
+                .remove("expiryDate")
+                .remove("tokenType")
+                .remove("scope")
+                .remove("refreshToken")
+                .apply()
+        }
     }
 }

@@ -30,11 +30,16 @@ class UploadFragment : YoutubeBase() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val button = requireView().findViewById<Button>(R.id.btn_upload_video)
-        button.setOnClickListener {
-            button.isEnabled = false
+        val upload = requireView().findViewById<Button>(R.id.btn_upload_video)
+        upload.setOnClickListener {
+            upload.isEnabled = false
             showChannels()
-            button.isEnabled = true
+            upload.isEnabled = true
+        }
+
+        val resetCredentials = requireView().findViewById<Button>(R.id.btn_reset_credentials)
+        resetCredentials.setOnClickListener {
+            Utility.resetCredentials(requireContext())
         }
     }
 
