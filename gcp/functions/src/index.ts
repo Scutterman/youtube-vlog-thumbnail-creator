@@ -78,6 +78,7 @@ export const youtubeRestApi = functions.https.onRequest(async (request, response
       const url = oauth2Client.generateAuthUrl({
         // offline means include the refresh_token
         access_type: 'offline',
+        prompt: 'consent',
         scope: scopes,
         state: doc.id
       })
@@ -117,7 +118,7 @@ export const youtubeRestApi = functions.https.onRequest(async (request, response
       const { tokens } = await oauth2Client.getToken(code)
 
       try {
-      await doc.ref.update({ status: StoredTokenStatus.HAS_AUTH, tokens } as Partial<StoredToken>)
+        await doc.ref.update({ status: StoredTokenStatus.HAS_AUTH, tokens } as Partial<StoredToken>)
       } catch (e) {
         functions.logger.error('Could not update the doc', e)
         response.sendStatus(401)
