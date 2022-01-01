@@ -65,11 +65,12 @@ class AuthFragment : Fragment(), DefaultLifecycleObserver {
                     Utility.setAuthentication(auth, requireContext())
                     tokenId = null
                 } catch (_error: Exception) {
+                    Log.e("FETCH_TOKEN", "Error while decoding the token", e)
                     showError()
                 }
             },
             { error ->
-                Log.e("FETCH_AUTH_URL", "Could not get auth url", error)
+                Log.e("FETCH_TOKEN", "Could not get auth url", error)
                 Utility.showMessage(requireActivity(), R.string.fragment_auth_no_auth_url)
             }
         )
