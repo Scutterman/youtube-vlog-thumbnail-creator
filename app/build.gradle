@@ -54,6 +54,7 @@ dependencies {
     implementation 'androidx.webkit:webkit:1.4.0'
     implementation 'com.android.volley:volley:1.2.1'
     implementation 'androidx.lifecycle:lifecycle-process:2.4.0'
+    implementation 'androidx.work:work-runtime-ktx:2.5.0'
     runtimeOnly 'androidx.activity:activity-ktx:1.4.0'
     runtimeOnly 'androidx.fragment:fragment-ktx:1.4.0'
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.4.1"

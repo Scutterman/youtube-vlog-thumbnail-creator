@@ -6,7 +6,6 @@ import android.graphics.drawable.BitmapDrawable
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -27,11 +26,12 @@ class ProfileAddFragment : Fragment() {
     private val getImageContract = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
             requireActivity().runOnUiThread {
-                val bitmap = if (Build.VERSION.SDK_INT < 28) {
-                    MediaStore.Images.Media.getBitmap(requireActivity().contentResolver, uri)
-                } else {
+                val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                     val source = ImageDecoder.createSource(requireActivity().contentResolver, uri)
                     ImageDecoder.decodeBitmap(source)
+                } else {
+                    @Suppress("DEPRECATION")
+                    MediaStore.Images.Media.getBitmap(requireActivity().contentResolver, uri)
                 }
                 if (bitmap != null) {
                     requireView().findViewById<ImageView>(R.id.overlay_image).setImageBitmap(bitmap)

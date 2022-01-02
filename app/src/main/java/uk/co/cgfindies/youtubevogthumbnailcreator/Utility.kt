@@ -15,6 +15,9 @@ import com.android.volley.toolbox.JsonObjectRequest
 import com.android.volley.toolbox.Volley
 import com.google.android.material.snackbar.Snackbar
 import org.json.JSONObject
+import uk.co.cgfindies.youtubevogthumbnailcreator.service.AccessTokenResponse
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 class Utility {
     companion object {
@@ -51,7 +54,7 @@ class Utility {
         // If the access token has expired, we ask the API server to give us a new access token using our refresh token
         // If the API server is unable to provide a new access token,
         // we assume the credentials are no longer valid and send the user back through the OAuth Flow
-        fun getAuthentication(context: Context, onComplete: (accessTokenResponse: AccessTokenResponse?) -> Unit) {
+        suspend fun getAuthentication(context: Context): AccessTokenResponse? = suspendCoroutine { cont ->
             val youtubePrefs = context.getSharedPreferences("youtube", Context.MODE_PRIVATE)
             val accessToken = youtubePrefs.getString("accessToken", null)
             val expiryDate = youtubePrefs.getLong("expiryDate", -1)
@@ -62,15 +65,15 @@ class Utility {
 
             if (accessToken == null || expiryDate < 0 || tokenType == null || scope == null || refreshToken == null) {
                 Log.i("GET_AUTHENTICATION", "One or more expected parameters is null, cannot construct AccessTokenResponse")
-                onComplete(null)
-                return
+                cont.resume(null)
+                return@suspendCoroutine
             }
 
             val time = System.currentTimeMillis()
             Log.i("GET_AUTHENTICATION", "Access token expires at $expiryDate, current time is $time")
             if (expiryDate >= time && !requiresRefresh) {
                 Log.i("GET_AUTHENTICATION", "Token still valid, returning AccessTokenResponse")
-                onComplete(
+                cont.resume(
                     AccessTokenResponse(
                         accessToken,
                         expiryDate,
@@ -79,7 +82,7 @@ class Utility {
                         refreshToken
                     )
                 )
-                return
+                return@suspendCoroutine
             }
 
             // The access token needs refreshing, so ask the API Server to do that
@@ -101,7 +104,7 @@ class Utility {
                         // Assume this is the case, and remove stored credentials
                         resetCredentials(context)
 
-                        onComplete(null)
+                        cont.resume(null)
                     } else {
                         youtubePrefs.edit()
                             .putString("accessToken", refreshedAccessToken)
@@ -109,12 +112,12 @@ class Utility {
                             .apply()
 
                         Log.i("GET_AUTHENTICATION", "Stored new access token and returning AccessTokenResponse object")
-                        onComplete(AccessTokenResponse(refreshedAccessToken, expiryDate, tokenType, scope, refreshToken))
+                        cont.resume(AccessTokenResponse(refreshedAccessToken, expiryDate, tokenType, scope, refreshToken))
                     }
                 },
                 { error ->
                     Log.e("REFRESH_ACCESS_TOKEN", "Could not refresh the access token", error)
-                    onComplete(null)
+                    cont.resume(null)
                 }
             )
 

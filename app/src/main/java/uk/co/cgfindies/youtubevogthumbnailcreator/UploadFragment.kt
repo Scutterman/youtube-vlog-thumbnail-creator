@@ -1,5 +1,6 @@
  package uk.co.cgfindies.youtubevogthumbnailcreator
 
+import android.content.Intent
 import android.os.Bundle
 import android.text.TextUtils
 import android.util.Log
@@ -11,15 +12,13 @@ import android.widget.ListView
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import com.google.api.services.youtube.model.PlaylistItem
-import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.*
+import uk.co.cgfindies.youtubevogthumbnailcreator.service.APIStatus
+import uk.co.cgfindies.youtubevogthumbnailcreator.service.YouTube
 
- /**
- * A simple [Fragment] subclass.
- * Use the [UploadFragment.newInstance] factory method to
- * create an instance of this fragment.
- */
- @DelicateCoroutinesApi
-class UploadFragment : YoutubeBase() {
+class UploadFragment: Fragment() {
+    private lateinit var youtube: YouTube
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -30,10 +29,13 @@ class UploadFragment : YoutubeBase() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        youtube = YouTube(requireContext())
         val upload = requireView().findViewById<Button>(R.id.btn_upload_video)
         upload.setOnClickListener {
             upload.isEnabled = false
-            showChannels()
+            CoroutineScope(Dispatchers.IO).launch {
+                showChannels()
+            }
             upload.isEnabled = true
         }
 
@@ -43,45 +45,64 @@ class UploadFragment : YoutubeBase() {
         }
     }
 
-    private fun showChannels() {
+    private suspend fun showChannels() {
         Log.i("UPLOAD", "Showing channels")
         setOutputText("")
 
-        getChannelList { channels ->
-            if (channels == null || channels.isEmpty()) {
-                Log.i("UPLOAD", "No results")
+        val status = youtube.apiStatus()
+
+        if (status == APIStatus.NO_NETWORK) {
+            Log.i("UPLOAD", "No Network")
+            Utility.showMessage(requireActivity(), R.string.network_unavailable)
+            return
+        } else if (status == APIStatus.REQUIRES_AUTH) {
+            val intent = Intent(context, AuthActivity::class.java)
+            requireContext().startActivity(intent)
+            return
+        }
+
+        val channels = youtube.getChannelList()
+        if (channels == null || channels.isEmpty()) {
+            Log.i("UPLOAD", "No results")
+            Utility.showMessage(requireActivity(), R.string.no_results)
+        } else {
+            Log.i("UPLOAD", "Got data")
+            val channelSummary = channels.map { channel ->
+                requireContext().resources.getString(R.string.upload_channel_description, channel.snippet.title, channel.statistics.viewCount)
+            }
+
+            setOutputText("Data retrieved using the YouTube Data API:\n\n" + TextUtils.join("\n\n", channelSummary))
+
+            // A bit of a hack here so we don't need to fetch channel playlists and search for the Uploads playlist id.
+            // Channel id seems to be the characters "UC" followed by an identifier.
+            // The playlist id for Uploads seems to be "UU" followed by that same identifier
+            // Therefore, to get the Uploads playlist id, strip the "UC" from the beginning of the channel id and add "UU" in its place
+            val playlistId = "UU" + channels[0].id.substring(2)
+
+            val items = youtube.getPlaylistVideos(playlistId)
+            if (items == null || items.isEmpty()) {
+                Log.i("VIDEOS", "No results")
                 Utility.showMessage(requireActivity(), R.string.no_results)
             } else {
-                Log.i("UPLOAD", "Got data")
-                val channelSummary = channels.map { channel ->
-                    requireContext().resources.getString(R.string.upload_channel_description, channel.snippet.title, channel.statistics.viewCount)
-                }
-
-                setOutputText("Data retrieved using the YouTube Data API:\n\n" + TextUtils.join("\n\n", channelSummary))
-
-                getPlaylistVideos("UUQLfY7-dNbkkQKXVkEttSKA") { items ->
-                    if (items == null || items.isEmpty()) {
-                        Log.i("VIDEOS", "No results")
-                        Utility.showMessage(requireActivity(), R.string.no_results)
-                    } else {
-                        Log.i("VIDEOS", "Got data")
-                        populateVideoList(items.toMutableList())
-                    }
-
-                }
+                Log.i("VIDEOS", "Got data")
+                populateVideoList(items.toMutableList())
             }
         }
     }
 
-    private fun setOutputText(text: String) {
-        requireView().findViewById<TextView>(R.id.upload_output).text = text
+    private suspend fun setOutputText(text: String) {
+        withContext(Dispatchers.Main) {
+            requireView().findViewById<TextView>(R.id.upload_output).text = text
+        }
     }
 
-     private fun populateVideoList(videos: MutableList<PlaylistItem>) {
-         val list = requireActivity().findViewById<ListView>(R.id.video_list)
-         val videoAdapter = VideoAdapter(requireContext(), videos)
-         list.adapter = videoAdapter
-         Log.i("ProfileAdapter", "Done populating video list")
+     private suspend fun populateVideoList(videos: MutableList<PlaylistItem>) {
+         withContext(Dispatchers.Main) {
+             val list = requireActivity().findViewById<ListView>(R.id.video_list)
+             val videoAdapter = VideoAdapter(requireContext(), videos)
+             list.adapter = videoAdapter
+             Log.i("ProfileAdapter", "Done populating video list")
+         }
      }
 
     companion object {
