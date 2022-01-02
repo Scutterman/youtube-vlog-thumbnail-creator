@@ -19,4 +19,3 @@ class AuthActivity : AppCompatActivity() {
         }
     }
 }
-

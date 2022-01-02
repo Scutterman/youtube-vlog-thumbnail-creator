@@ -197,8 +197,12 @@ open class YoutubeBase: Fragment() {
             request: HttpRequest, response: HttpResponse, supportsRetry: Boolean
         ): Boolean {
             Log.i("UPLOAD", "Request failed with the status" + response.statusCode.toString())
-            // If the response was 401, the problem should be solved by the user retrying
-            // Otherwise, we can't fix it anyway
+            // If the response was 401, mark the credentials as needing refreshing.
+            // If the refresh token is no longer valid,
+            // the API Server will not be able to return an access token and the user will be prompted to authenticate again
+            if (response.statusCode == 401) {
+                Utility.setRequiresRefresh(requireContext())
+            }
             return false
         }
     }
