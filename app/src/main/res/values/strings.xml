@@ -13,6 +13,12 @@
     <string name="add_profile">Add Profile</string>
     <string name="overlay_preview">Overlay preview</string>
     <string name="delete_profile">Delete Profile</string>
+
+    <string name="notification_channel_id">youtube_upload_notification</string>
+    <string name="notification_channel_name">Youtube Upload Notification</string>
+    <string name="notification_channel_description">Notifications will be displayed here when a video is uploading to YouTube</string>
+    <integer name="notification_id_upload_progress">1000</integer>
+
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
     <string name="profile_name">Profile Name</string>

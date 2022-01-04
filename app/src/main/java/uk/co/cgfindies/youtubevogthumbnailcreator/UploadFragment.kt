@@ -11,9 +11,16 @@ import android.widget.Button
 import android.widget.ListView
 import android.widget.TextView
 import androidx.fragment.app.Fragment
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.WorkRequest
 import com.google.api.services.youtube.model.PlaylistItem
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import uk.co.cgfindies.youtubevogthumbnailcreator.service.APIStatus
+import uk.co.cgfindies.youtubevogthumbnailcreator.service.Upload
 import uk.co.cgfindies.youtubevogthumbnailcreator.service.YouTube
 
 class UploadFragment: Fragment() {
@@ -42,6 +49,16 @@ class UploadFragment: Fragment() {
         val resetCredentials = requireView().findViewById<Button>(R.id.btn_reset_credentials)
         resetCredentials.setOnClickListener {
             Utility.resetCredentials(requireContext())
+        }
+
+        requireView().findViewById<Button>(R.id.btn_do_notification).setOnClickListener {
+            val uploadWorkRequest: WorkRequest =
+                OneTimeWorkRequestBuilder<Upload>()
+                    .build()
+
+            WorkManager
+                .getInstance(requireContext())
+                .enqueue(uploadWorkRequest)
         }
     }
 

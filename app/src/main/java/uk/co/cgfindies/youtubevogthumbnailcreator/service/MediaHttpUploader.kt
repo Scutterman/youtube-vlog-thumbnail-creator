@@ -127,6 +127,7 @@ class MediaHttpUploader(
                 httpRequestInitializer
             )
         }
+
     /** Returns the transport to use for requests.  */
     /** The transport to use for requests.  */
     @Suppress("Unused")
@@ -500,9 +501,14 @@ class MediaHttpUploader(
         }
     }
 
-    @Suppress("Unused")
     fun pause() {
         isPaused = true
+    }
+
+    fun resumeIfPaused() {
+        if (isPaused && uploadUrl != null) {
+            resume()
+        }
     }
 
     /** @return `true` if the media length is known, otherwise `false`
