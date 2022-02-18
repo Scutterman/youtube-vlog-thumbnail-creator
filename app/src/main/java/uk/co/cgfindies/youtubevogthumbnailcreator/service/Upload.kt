@@ -40,12 +40,12 @@ class Upload(val context: Context, params: WorkerParameters) : CoroutineWorker(c
     private val networkMonitor = NetworkMonitor.getUnmeteredInstance(context)
 
     private var uploader: MediaHttpUploader? = null
-
     private var cleanedUp = false
-
     private var isPaused = false
+    private var progress: Double = 0.0
 
     private var notificationChannelId: String? = null
+
     var notificationId = 0
         private set
 
@@ -85,7 +85,15 @@ class Upload(val context: Context, params: WorkerParameters) : CoroutineWorker(c
 
             val uri = Uri.parse(inputData.getString(KEY_URI_ARG))
 
-            uploader = YouTube(context).upload(part, video, uri)
+            uploader = YouTube(context).upload(part, video, uri) {
+                Log.d("WORKER", "got progress ${ uploader?.progress }")
+                progress = uploader?.progress ?: 0.0
+                CoroutineScope(Dispatchers.Default).launch {
+                    Log.i("WORKER", "re-creating the notification")
+                    createNotification()
+                }
+            }
+
             if (uploader == null) {
                 Log.e("WORKER", "could not create uploader, nothing more to do")
                 return Result.failure()
@@ -103,7 +111,6 @@ class Upload(val context: Context, params: WorkerParameters) : CoroutineWorker(c
                     Log.i("WORKER", "Not doing work because I'm paused")
                     SystemClock.sleep(5000)
                 } else {
-                    // TODO:: Find some way to update progress in notification
                     Log.i("WORKER", "Uploading until I'm paused again")
                     val response = uploader?.resumeIfPaused()
                     Log.d("WORKER", "Got response")
@@ -199,6 +206,7 @@ class Upload(val context: Context, params: WorkerParameters) : CoroutineWorker(c
             .setContentText(progress)
             .setSmallIcon(R.drawable.ic_baseline_publish_24)
             .setOngoing(true)
+            .setProgress(100, this.progress.toInt(), true)
             .addAction(android.R.drawable.ic_delete, cancel, cancelIntent)
 
         val intentAction = Intent(context, PauseResumeReceiver::class.java)

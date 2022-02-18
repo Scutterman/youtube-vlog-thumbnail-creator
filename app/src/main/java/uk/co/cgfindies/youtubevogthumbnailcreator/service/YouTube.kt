@@ -95,7 +95,7 @@ class YouTube(val context: Context) {
         }
     }
 
-    suspend fun upload(part: String, video: Video, uri: Uri): MediaHttpUploader = suspendCoroutine { cont ->
+    suspend fun upload(part: String, video: Video, uri: Uri, progressListener: ((uploader: MediaHttpUploader) -> Unit)? = null): MediaHttpUploader = suspendCoroutine { cont ->
         CoroutineScope(Dispatchers.Default).launch {
             kotlin.runCatching {
                 try {
@@ -121,6 +121,7 @@ class YouTube(val context: Context) {
                     val uploader = MediaHttpUploader(mediaContent, requestFactory.transport, requestFactory.initializer)
                     uploader.setInitiationRequestMethod("POST")
                     uploader.setMetadata(httpContent)
+                    uploader.setProgressListener(progressListener)
 
                     // Build the URL and start the upload
                     Log.i("UPLOAD", "Starting upload on MediaHttpUploader")
