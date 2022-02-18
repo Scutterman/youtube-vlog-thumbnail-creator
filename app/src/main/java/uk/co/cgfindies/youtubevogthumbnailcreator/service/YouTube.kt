@@ -50,7 +50,7 @@ class YouTube(val context: Context) {
 
     }
 
-    private fun getBuilder(): com.google.api.services.youtube.YouTube.Builder {
+    private fun getBuilder(): YouTube.Builder {
         val auth = this.auth ?: throw Exception("Set authentication before running a request")
         Log.i("UPLOAD", "Setting up the api client")
         val transport = AndroidHttp.newCompatibleTransport()
@@ -108,8 +108,8 @@ class YouTube(val context: Context) {
                     video.snippet = snippet
 
                     val status = VideoStatus()
-                    status.privacyStatus = "private";
-                    video.status = status;
+                    status.privacyStatus = "private"
+                    video.status = status
 
                     val part = "snippet,status"
 
@@ -125,7 +125,7 @@ class YouTube(val context: Context) {
                         Log.i("UPLOAD", "Got url")
 
                         Log.i("UPLOAD", "Creating http content from video details")
-                        val httpContent = if (video == null) null else JsonHttpContent(
+                        val httpContent = JsonHttpContent(
                             client.jsonFactory,
                             video
                         ).setWrapperKey(if (client.objectParser.wrapperKeys.isEmpty()) null else "data")
@@ -155,11 +155,6 @@ class YouTube(val context: Context) {
                                 client.baseUrl, uriTemplate, insert, true
                             )
                         )
-
-                        Log.i("UPLOAD", "Building request")
-                        val httpRequest: HttpRequest = client
-                            .requestFactory
-                            .buildRequest("POST", httpRequestUrl, httpContent)
 
                         Log.i("UPLOAD", "Starting upload on MediaHttpUploader")
                         uploader.setDisableGZipContent(false).upload(httpRequestUrl)
