@@ -1,5 +1,6 @@
 package uk.co.cgfindies.youtubevogthumbnailcreator.service
 
+import android.util.Log
 import com.google.api.client.googleapis.MethodOverride
 import com.google.api.client.http.*
 import com.google.api.client.util.Beta
@@ -76,9 +77,11 @@ class MediaHttpUploader(
      * along with the method [MediaHttpUploader.pause].
      *
      * The method [MediaHttpUploader.resumableUpload] has been split in two,
-     * with the initialisation still happening in the original method
-     * followed by a call to the new method [MediaHttpUploader.resume].
-
+     * with the initialisation still happening in the original method.
+     *
+     * A call to the new method [MediaHttpUploader.resume] is now required
+     * after [MediaHttpUploader.resumableUpload] has been called.
+     *
      * These two methods called in succession behave identically to the original
      * [MediaHttpUploader.resumableUpload] method, except that they will return null if
      * [MediaHttpUploader.pause] method is called before the upload completes
@@ -298,7 +301,7 @@ class MediaHttpUploader(
     var sleeper: Sleeper = Sleeper.DEFAULT
 
     private var uploadUrl: GenericUrl? = null
-    private var isPaused = false
+    private var isPaused = true
 
     /**
      * Executes a direct media upload or resumable media upload conforming to the specifications
@@ -336,11 +339,14 @@ class MediaHttpUploader(
     @Throws(IOException::class)
     @Suppress("Unused")
     fun upload(initiationRequestUrl: GenericUrl): HttpResponse? {
+        Log.d("MediaHttpUploader", "Beginning upload")
         Preconditions.checkArgument(uploadState == UploadState.NOT_STARTED)
         if (directUploadEnabled) {
             return directUpload(initiationRequestUrl)
         }
-        return resumableUpload(initiationRequestUrl)
+
+        resumableUpload(initiationRequestUrl)
+        return null
     }
 
     /**
@@ -388,12 +394,14 @@ class MediaHttpUploader(
      * @return HTTP response or null. If null is returned, the upload was paused and must be resumed using a call to [MediaHttpUploader.resume]
      */
     @Throws(IOException::class)
-    private fun resumableUpload(initiationRequestUrl: GenericUrl): HttpResponse? {
+    private fun resumableUpload(initiationRequestUrl: GenericUrl) {
+        Log.d("MediaHttpUploader", "Setting up resumable upload")
+
         // Make initial request to get the unique upload URL.
         val initialResponse = executeUploadInitiation(initiationRequestUrl)
         if (!initialResponse.isSuccessStatusCode) {
             // If the initiation request is not successful return it immediately.
-            return initialResponse
+            return
         }
 
         uploadUrl = try {
@@ -411,7 +419,7 @@ class MediaHttpUploader(
             contentInputStream = BufferedInputStream(contentInputStream)
         }
 
-        return resume()
+        Log.d("MediaHttpUploader", "Upload setup complete")
     }
 
     @Suppress("MemberVisibilityCanBePrivate")
@@ -505,10 +513,11 @@ class MediaHttpUploader(
         isPaused = true
     }
 
-    fun resumeIfPaused() {
+    fun resumeIfPaused(): HttpResponse? {
         if (isPaused && uploadUrl != null) {
-            resume()
+            return resume()
         }
+        return null
     }
 
     /** @return `true` if the media length is known, otherwise `false`
