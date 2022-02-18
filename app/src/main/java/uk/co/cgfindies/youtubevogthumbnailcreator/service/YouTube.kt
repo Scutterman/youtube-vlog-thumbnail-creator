@@ -9,7 +9,9 @@ import com.google.api.client.http.json.JsonHttpContent
 import com.google.api.client.json.JsonFactory
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.services.youtube.YouTube
-import com.google.api.services.youtube.model.*
+import com.google.api.services.youtube.model.Channel
+import com.google.api.services.youtube.model.PlaylistItem
+import com.google.api.services.youtube.model.Video
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -17,6 +19,7 @@ import kotlinx.serialization.Serializable
 import uk.co.cgfindies.youtubevogthumbnailcreator.NetworkMonitor
 import uk.co.cgfindies.youtubevogthumbnailcreator.Utility
 import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
 @Serializable
@@ -92,81 +95,44 @@ class YouTube(val context: Context) {
         }
     }
 
-    suspend fun upload(uri: Uri?): MediaHttpUploader? = suspendCoroutine { cont ->
+    suspend fun upload(part: String, video: Video, uri: Uri): MediaHttpUploader = suspendCoroutine { cont ->
         CoroutineScope(Dispatchers.Default).launch {
             kotlin.runCatching {
                 try {
                     Log.i("UPLOAD", "Performing upload action")
-
                     // TODO:: Check we have auth before creating the Worker
                     auth = Utility.getAuthentication(context)
 
-                    val video = Video()
-                    val snippet = VideoSnippet()
-                    snippet.title = "Hello World"
-                    snippet.description = "Woohoo"
-                    video.snippet = snippet
-
-                    val status = VideoStatus()
-                    status.privacyStatus = "private"
-                    video.status = status
-
-                    val part = "snippet,status"
-
-                    Log.i("UPLOAD", "Creating builder")
+                    // Get the YouTube client and service path
                     val builder = getBuilder()
-                    Log.i("UPLOAD", "Creating client")
+                    val uriTemplate = "/upload/" + builder.servicePath + "videos"
                     val client = builder.build()
 
-                    Log.i("UPLOAD", "Setting up insert")
-                    val insert = getApiClient().videos().insert(part, video)
+                    // Turn video details into the correct format for the request
+                    val httpContent = JsonHttpContent(client.jsonFactory, video)
+                        .setWrapperKey(if (client.objectParser.wrapperKeys.isEmpty()) null else "data")
 
-                    if (uri != null) {
-                        Log.i("UPLOAD", "Got url")
+                    // Turn the uri into an InputStreamContent for the request
+                    val stream = context.contentResolver.openInputStream(uri)
+                    val mediaContent = InputStreamContent(context.contentResolver.getType(uri), stream)
 
-                        Log.i("UPLOAD", "Creating http content from video details")
-                        val httpContent = JsonHttpContent(
-                            client.jsonFactory,
-                            video
-                        ).setWrapperKey(if (client.objectParser.wrapperKeys.isEmpty()) null else "data")
+                    // Build a MediaHttpUploader (our custom one) to handle the upload
+                    val requestFactory = client.requestFactory
+                    val uploader = MediaHttpUploader(mediaContent, requestFactory.transport, requestFactory.initializer)
+                    uploader.setInitiationRequestMethod("POST")
+                    uploader.setMetadata(httpContent)
 
-                        Log.i("UPLOAD", "Creating input stream from uri")
-                        val stream = context.contentResolver.openInputStream(uri)
-                        val mediaContent = InputStreamContent(context.contentResolver.getType(uri), stream)
+                    // Build the URL and start the upload
+                    Log.i("UPLOAD", "Starting upload on MediaHttpUploader")
+                    val insert = client.videos().insert(part, video)
+                    val httpRequestUrl = GenericUrl(UriTemplate.expand(client.baseUrl, uriTemplate, insert, true))
+                    uploader.setDisableGZipContent(false).upload(httpRequestUrl)
 
-                        Log.i("UPLOAD", "Creating MediaHttpUploader")
-                        val requestFactory = client.requestFactory
-                        val uploader = MediaHttpUploader(
-                            mediaContent, requestFactory.transport, requestFactory.initializer
-                        )
-
-                        uploader.setInitiationRequestMethod("POST")
-
-                        if (httpContent != null) {
-                            Log.i("UPLOAD", "Setting httpContent metadata")
-                            uploader.setMetadata(httpContent)
-                        }
-
-                        val uriTemplate = "/upload/" + builder.servicePath + "videos"
-
-                        // upload request
-                        val httpRequestUrl = GenericUrl(
-                            UriTemplate.expand(
-                                client.baseUrl, uriTemplate, insert, true
-                            )
-                        )
-
-                        Log.i("UPLOAD", "Starting upload on MediaHttpUploader")
-                        uploader.setDisableGZipContent(false).upload(httpRequestUrl)
-                        cont.resume(uploader)
-                    } else {
-                        Log.i("UPLOAD", "No URI, falling back to inserting without media")
-                        insert.execute()
-                        cont.resume(null)
-                    }
+                    // Done
+                    cont.resume(uploader)
                 } catch (e: java.lang.Exception) {
                     Log.e("UPLOAD", "Failure attempting to start the upload", e)
-                    cont.resume(null)
+                    cont.resumeWithException(e)
                 }
             }
         }

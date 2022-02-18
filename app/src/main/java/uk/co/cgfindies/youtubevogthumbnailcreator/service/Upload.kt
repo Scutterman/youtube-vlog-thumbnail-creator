@@ -16,6 +16,9 @@ import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.google.api.services.youtube.model.Video
+import com.google.api.services.youtube.model.VideoSnippet
+import com.google.api.services.youtube.model.VideoStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -67,8 +70,22 @@ class Upload(val context: Context, params: WorkerParameters) : CoroutineWorker(c
             Log.d("WORKER", "Notification created")
 
             Log.d("WORKER", "About to start upload")
+
+            val video = Video()
+            val snippet = VideoSnippet()
+            snippet.title = "Hello World"
+            snippet.description = "Woohoo"
+            video.snippet = snippet
+
+            val status = VideoStatus()
+            status.privacyStatus = "private"
+            video.status = status
+
+            val part = "snippet,status"
+
             val uri = Uri.parse(inputData.getString(KEY_URI_ARG))
-            uploader = YouTube(context).upload(uri)
+
+            uploader = YouTube(context).upload(part, video, uri)
             if (uploader == null) {
                 Log.e("WORKER", "could not create uploader, nothing more to do")
                 return Result.failure()
