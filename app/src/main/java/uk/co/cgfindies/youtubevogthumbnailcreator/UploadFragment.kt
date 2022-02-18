@@ -12,9 +12,7 @@ import android.widget.Button
 import android.widget.ListView
 import android.widget.TextView
 import androidx.fragment.app.Fragment
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
-import androidx.work.WorkRequest
+import androidx.work.*
 import com.google.api.services.youtube.model.PlaylistItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -53,8 +51,15 @@ class UploadFragment (private val uri: Uri?): Fragment() {
         }
 
         requireView().findViewById<Button>(R.id.btn_do_notification).setOnClickListener {
+            if (uri == null) {
+                Log.e("UPLOAD_FRAGMENT", "Upload requested but no uri present")
+                Utility.showMessage(requireActivity(), R.string.fragment_upload_no_uri)
+            }
+            val myData: Data = workDataOf("URI" to uri.toString())
+
             val uploadWorkRequest: WorkRequest =
                 OneTimeWorkRequestBuilder<Upload>()
+                    .setInputData(myData)
                     .build()
 
             WorkManager

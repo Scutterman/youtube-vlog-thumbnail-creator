@@ -46,6 +46,8 @@
     <string name="fragment_auth_paste_your_token_here">Paste your token here</string>
     <string name="fragment_auth_token_invalid">Authentication failed, please try again</string>
 
+    <string name="fragment_upload_no_uri">You must choose a video before attempting to upload</string>
+
     <string name="upload_channel_description">%1$s (%2$d views)</string>
 
     <string name="listview_item_video_thumbnail">Video Thumbnail</string>

@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.SystemClock
 import android.util.Log
@@ -21,6 +22,8 @@ import kotlinx.coroutines.launch
 import uk.co.cgfindies.youtubevogthumbnailcreator.NetworkMonitor
 import uk.co.cgfindies.youtubevogthumbnailcreator.R
 import java.lang.ref.WeakReference
+
+const val KEY_URI_ARG = "URI"
 
 class Upload(val context: Context, params: WorkerParameters) : CoroutineWorker(context, params), NetworkMonitor.ConnectionObserver {
     companion object {
@@ -56,6 +59,7 @@ class Upload(val context: Context, params: WorkerParameters) : CoroutineWorker(c
             }
 
             createNotification()
+            val uri = Uri.parse(inputData.getString(KEY_URI_ARG))
 
             while (true) {
                 if (isStopped) {
