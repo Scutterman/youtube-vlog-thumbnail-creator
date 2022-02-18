@@ -21,6 +21,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var profileManager: ProfileManager
     private lateinit var currentProfile: Profile
     private lateinit var profileAdapter: ProfileAdapter
+    private var displayedFragment: Fragment? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -62,6 +63,7 @@ class MainActivity : AppCompatActivity() {
         val transaction = supportFragmentManager.beginTransaction().setReorderingAllowed(true)
         if (shouldAdd) transaction.add(container, fragment, tag) else transaction.replace(container, fragment, tag)
         transaction.commit()
+        displayedFragment = fragment
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -78,7 +80,9 @@ class MainActivity : AppCompatActivity() {
             }
             true
         } else if (id == R.id.open_upload) {
-            changeFragment(UploadFragment.newInstance(), "UPLOAD_FRAGMENT")
+            val df = displayedFragment
+            var uri = if (df is ThumbnailFragment) { df.lastUri } else null
+            changeFragment(UploadFragment.newInstance(uri), "UPLOAD_FRAGMENT")
             true
         } else super.onOptionsItemSelected(item)
     }

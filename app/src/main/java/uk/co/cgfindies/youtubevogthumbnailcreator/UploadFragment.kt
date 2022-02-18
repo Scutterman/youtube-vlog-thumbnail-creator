@@ -1,6 +1,7 @@
  package uk.co.cgfindies.youtubevogthumbnailcreator
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.text.TextUtils
 import android.util.Log
@@ -23,7 +24,7 @@ import uk.co.cgfindies.youtubevogthumbnailcreator.service.APIStatus
 import uk.co.cgfindies.youtubevogthumbnailcreator.service.Upload
 import uk.co.cgfindies.youtubevogthumbnailcreator.service.YouTube
 
-class UploadFragment: Fragment() {
+class UploadFragment (private val uri: Uri?): Fragment() {
     private lateinit var youtube: YouTube
 
     override fun onCreateView(
@@ -129,7 +130,7 @@ class UploadFragment: Fragment() {
          * @return A new instance of fragment UploadFragment.
          */
         @JvmStatic
-        fun newInstance() =
-            UploadFragment()
+        fun newInstance(uri: Uri?) =
+            UploadFragment(uri)
     }
 }

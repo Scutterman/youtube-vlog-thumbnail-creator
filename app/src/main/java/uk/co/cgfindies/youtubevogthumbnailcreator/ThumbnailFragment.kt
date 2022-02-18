@@ -47,6 +47,8 @@ private const val THUMBNAIL_FRAGMENT_ARG_PROFILE_ID = "argProfileId"
  */
 class ThumbnailFragment : Fragment() {
     private lateinit var profile: Profile
+    var lastUri: Uri? = null
+        private set
 
     companion object Factory {
         val rnd = Random.Default
@@ -74,6 +76,7 @@ class ThumbnailFragment : Fragment() {
         .build()
 
     private val getVideoContract = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        lastUri = uri
         if (uri != null) {
             Log.d("MAIN", "We have a uri")
             CoroutineScope(Dispatchers.Default).launch {
