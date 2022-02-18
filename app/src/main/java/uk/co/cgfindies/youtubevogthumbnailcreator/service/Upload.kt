@@ -47,26 +47,36 @@ class Upload(val context: Context, params: WorkerParameters) : CoroutineWorker(c
         private set
 
     init {
+        Log.d("WORKER", "Creating network manager")
         networkMonitor.registerConnectionObserver(this)
+        Log.d("WORKER", "Created network manager")
     }
 
     override suspend fun doWork(): Result {
         try {
             if (INSTANCE != null) {
+                Log.d("WORKER", "Instance already exists, can't create a new one")
                 throw Exception("Upload worker is designed to only have one instance running at a time")
             } else {
+                Log.d("WORKER", "Creating a new reference to the instance")
                 INSTANCE = WeakReference(this)
             }
 
+            Log.d("WORKER", "Creating notification")
             createNotification()
+            Log.d("WORKER", "Notification created")
+
+            Log.d("WORKER", "About to start upload")
             val uri = Uri.parse(inputData.getString(KEY_URI_ARG))
             uploader = YouTube(context).upload(uri)
             if (uploader == null) {
                 Log.e("WORKER", "could not create uploader, nothing more to do")
                 return Result.failure()
             }
+            Log.d("WORKER", "Uploader set up, starting upload loop")
 
             while (true) {
+                Log.d("WORKER", "loop")
                 if (isStopped) {
                     Log.i("WORKER", "Worker stopped, exiting")
                     return Result.failure()
@@ -76,6 +86,7 @@ class Upload(val context: Context, params: WorkerParameters) : CoroutineWorker(c
                     Log.i("WORKER", "Not doing work because I'm paused")
                     SystemClock.sleep(5000)
                 } else {
+                    // TODO:: Find some way to update progress in notification
                     Log.i("WORKER", "Uploading until I'm paused again")
                     val response = uploader?.resumeIfPaused()
                     Log.d("WORKER", "Got response")
@@ -85,8 +96,10 @@ class Upload(val context: Context, params: WorkerParameters) : CoroutineWorker(c
                     } else {
                         Log.d("WORKER", "uploader returned a response, upload should be complete.")
                         break
+                    }
                 }
             }
+
             return Result.success()
         } catch(e: java.lang.Exception) {
             Log.e("WORKER", "Failure during upload", e)
@@ -97,10 +110,13 @@ class Upload(val context: Context, params: WorkerParameters) : CoroutineWorker(c
     }
 
     private fun cleanUp() {
+        Log.d("WORKER", "Cleanup called")
         if (!cleanedUp) {
+            Log.d("WORKER", "Cleanup in progress")
             networkMonitor.unregisterConnectionObserver(this)
             cleanedUp = true
             INSTANCE = null
+            Log.d("WORKER", "Cleanup completed")
         }
     }
 

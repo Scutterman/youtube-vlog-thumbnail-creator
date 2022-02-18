@@ -7,9 +7,7 @@ import com.google.api.client.util.Beta
 import com.google.api.client.util.ByteStreams
 import com.google.api.client.util.Preconditions
 import com.google.api.client.util.Sleeper
-import java.io.BufferedInputStream
-import java.io.IOException
-import java.io.InputStream
+import java.io.*
 import kotlin.math.max
 import kotlin.math.min
 
@@ -400,6 +398,14 @@ class MediaHttpUploader(
         // Make initial request to get the unique upload URL.
         val initialResponse = executeUploadInitiation(initiationRequestUrl)
         if (!initialResponse.isSuccessStatusCode) {
+            val r = BufferedReader(InputStreamReader(initialResponse.content))
+            val total: StringBuilder = StringBuilder()
+            var line: String?
+            while (r.readLine().also { line = it } != null) {
+                total.append(line).append('\n')
+            }
+            Log.e("MediaHttpUploader", "Could not initiate the request ${ initialResponse.statusCode } ${ initialResponse.statusMessage } $total")
+
             // If the initiation request is not successful return it immediately.
             return
         }
@@ -413,6 +419,8 @@ class MediaHttpUploader(
         // Convert media content into a byte stream to upload in chunks.
         contentInputStream = mediaContent.inputStream
         if (contentInputStream?.markSupported() != true && isMediaLengthKnown) {
+            Log.d("MediaHttpUploader", "Converting to buffered input stream")
+
             // If we know the media content length then wrap the stream into a Buffered input stream to
             // support the {@link InputStream#mark} and {@link InputStream#reset} methods required for
             // handling server errors.
@@ -424,12 +432,15 @@ class MediaHttpUploader(
 
     @Suppress("MemberVisibilityCanBePrivate")
     fun resume(): HttpResponse? {
+        Log.d("MediaHttpUploader", "resuming")
+
         isPaused = false
         var response: HttpResponse
 
         // Upload the media content in chunks.
         while (true) {
             if (isPaused) {
+                Log.d("MediaHttpUploader", "Upload Paused")
                 return null
             }
 
@@ -448,9 +459,13 @@ class MediaHttpUploader(
             } else {
                 executeCurrentRequest(currentRequest)
             }
+
             var returningResponse = false
+
             try {
                 if (response.isSuccessStatusCode) {
+                    Log.d("MediaHttpUploader", "Upload complete")
+
                     numBytesUploaded = mediaContentLength
                     if (mediaContent.closeInputStream) {
                         contentInputStream!!.close()
@@ -459,7 +474,11 @@ class MediaHttpUploader(
                     returningResponse = true
                     return response
                 }
+
+                Log.d("MediaHttpUploader", "Response ${ response.statusCode } ${ response.statusMessage }")
                 if (response.statusCode != 308) {
+                    Log.d("MediaHttpUploader", "Status code is not 308, upload should be complete")
+
                     if (mediaContent.closeInputStream) {
                         contentInputStream!!.close()
                     }
@@ -502,6 +521,7 @@ class MediaHttpUploader(
                 numBytesUploaded = newBytesServerReceived
                 updateStateAndNotifyListener(UploadState.MEDIA_IN_PROGRESS)
             } finally {
+                Log.d("MediaHttpUploader", "Done with chunk")
                 if (!returningResponse) {
                     response.disconnect()
                 }
