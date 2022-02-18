@@ -36,7 +36,7 @@ class Upload(val context: Context, params: WorkerParameters) : CoroutineWorker(c
 
     private val networkMonitor = NetworkMonitor.getUnmeteredInstance(context)
 
-    private val uploader: MediaHttpUploader? = null
+    private var uploader: MediaHttpUploader? = null
 
     private var cleanedUp = false
 
@@ -60,6 +60,11 @@ class Upload(val context: Context, params: WorkerParameters) : CoroutineWorker(c
 
             createNotification()
             val uri = Uri.parse(inputData.getString(KEY_URI_ARG))
+            uploader = YouTube(context).upload(uri)
+            if (uploader == null) {
+                Log.e("WORKER", "could not create uploader, nothing more to do")
+                return Result.failure()
+            }
 
             while (true) {
                 if (isStopped) {
@@ -71,17 +76,24 @@ class Upload(val context: Context, params: WorkerParameters) : CoroutineWorker(c
                     Log.i("WORKER", "Not doing work because I'm paused")
                     SystemClock.sleep(5000)
                 } else {
-                    // TODO:: This should manage the upload, but I haven't gotten to that part yet
-                    Log.i("WORKER", "Uploading the next chunk like an absolute boss")
-                    SystemClock.sleep(5000)
+                    Log.i("WORKER", "Uploading until I'm paused again")
+                    val response = uploader?.resumeIfPaused()
+                    Log.d("WORKER", "Got response")
+                    if (response == null) {
+                        Log.d("WORKER", "uploader is paused, pausing worker")
+                        pauseResume(true)
+                    } else {
+                        Log.d("WORKER", "uploader returned a response, upload should be complete.")
+                        break
                 }
             }
             return Result.success()
+        } catch(e: java.lang.Exception) {
+            Log.e("WORKER", "Failure during upload", e)
+            return Result.failure()
         } finally {
             cleanUp()
         }
-
-        return Result.failure()
     }
 
     private fun cleanUp() {
