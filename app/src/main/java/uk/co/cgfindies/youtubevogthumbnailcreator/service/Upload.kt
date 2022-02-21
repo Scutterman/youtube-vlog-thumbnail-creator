@@ -43,11 +43,25 @@ class Upload(val context: Context, params: WorkerParameters) : CoroutineWorker(c
     private var cleanedUp = false
     private var isPaused = false
     private var progress: Double = 0.0
+    private val uploadingId = 0
 
     private var notificationChannelId: String? = null
+    private val notificationIds: MutableSet<Int> = mutableSetOf()
 
     var notificationId = 0
         private set
+
+    private var pendingNotificationId = 0
+
+    private val group = "YOUTUBE_VLOG_UPLOADER_NOTIFICATION_GROUP"
+
+    private val queue = arrayOf(
+        "A QA Tester went into a bar, you won't believe what happened next",
+        "3 things you didn't know about software development - #7 will shock you",
+        "Does Wheel of Time get better?",
+        "Why don't all authors write what I like?",
+        "How to tell you're acting entitled, and 7 things you can do about it"
+    )
 
     init {
         Log.d("WORKER", "Creating network manager")
@@ -86,11 +100,16 @@ class Upload(val context: Context, params: WorkerParameters) : CoroutineWorker(c
             val uri = Uri.parse(inputData.getString(KEY_URI_ARG))
 
             uploader = YouTube(context).upload(part, video, uri) {
-                Log.d("WORKER", "got progress ${ uploader?.progress }")
-                progress = uploader?.progress ?: 0.0
-                CoroutineScope(Dispatchers.Default).launch {
-                    Log.i("WORKER", "re-creating the notification")
-                    createNotification()
+                if (isStopped) {
+                    Log.i("WORKER", "Worker stop detected in progress update, pausing")
+                    uploader?.pause()
+                } else {
+                    Log.d("WORKER", "got progress ${ uploader?.progress }")
+                    progress = uploader?.progress ?: 0.0
+                    CoroutineScope(Dispatchers.Default).launch {
+                        Log.i("WORKER", "Updating the notification")
+                        createNotification(false)
+                    }
                 }
             }
 
@@ -129,6 +148,7 @@ class Upload(val context: Context, params: WorkerParameters) : CoroutineWorker(c
             Log.e("WORKER", "Failure during upload", e)
             return Result.failure()
         } finally {
+            Log.i("WORKER", "Calling cleanup from Finally block of doWork()")
             cleanUp()
         }
     }
@@ -141,6 +161,15 @@ class Upload(val context: Context, params: WorkerParameters) : CoroutineWorker(c
             cleanedUp = true
             INSTANCE = null
             Log.d("WORKER", "Cleanup completed")
+
+            for (id in notificationIds) {
+                try {
+                    notificationManager.cancel(id)
+                    Log.i("WORKER", "Notification $id has been cancelled")
+                } catch (e: java.lang.Exception) {
+                    Log.e("WORKER", "Could not cancel notification", e)
+                }
+            }
         }
     }
 
@@ -159,7 +188,7 @@ class Upload(val context: Context, params: WorkerParameters) : CoroutineWorker(c
 
         CoroutineScope(Dispatchers.Default).launch {
             Log.i("WORKER", "re-creating the notification")
-            createNotification()
+            createNotification(false)
         }
     }
 
@@ -170,7 +199,37 @@ class Upload(val context: Context, params: WorkerParameters) : CoroutineWorker(c
         }
     }
 
-    private suspend fun createNotification() {
+    private fun updateNotification(index: Int): Int {
+        if (isStopped || cleanedUp) {
+            return -1
+        }
+
+        if (pendingNotificationId == 0) {
+            pendingNotificationId = context.resources.getInteger(R.integer.notification_id_upload_pending)
+        }
+
+        val upload = queue[index]
+        val notificationId = pendingNotificationId + index
+
+        val notificationBuilder = NotificationCompat.Builder(applicationContext, notificationChannelId ?: "")
+            .setContentTitle(upload)
+            .setSmallIcon(R.drawable.ic_baseline_publish_24)
+            .setProgress(100, 0, true)
+            .setGroup(group)
+
+        notificationManager.notify(notificationId, notificationBuilder.build())
+        return notificationId
+    }
+
+    private suspend fun createNotification(buildGroup: Boolean = true) {
+        if (isStopped || cleanedUp) {
+            return
+        }
+
+        if (notificationId == 0) {
+            notificationId = context.resources.getInteger(R.integer.notification_id_upload_progress)
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && notificationChannelId == null) {
             // Create the NotificationChannel
             notificationChannelId = context.getString(R.string.notification_channel_id)
@@ -185,48 +244,87 @@ class Upload(val context: Context, params: WorkerParameters) : CoroutineWorker(c
             notificationManager.createNotificationChannel(channel)
         }
 
+        var inboxStyle = NotificationCompat.InboxStyle()
+        var pendingCount = 0
+
+        queue.forEachIndexed { index, upload ->
+
+            if (buildGroup && index != uploadingId) {
+                pendingCount++
+                inboxStyle = inboxStyle.addLine(upload)
+               notificationIds.add(updateNotification(index))
+            }
+        }
+
+        val cancel = "cancel"
         val cancelIntent = WorkManager.getInstance(applicationContext)
             .createCancelPendingIntent(id)
 
-        PendingIntent.CREATOR
+        if (pendingCount > 0) {
+            val summaryTitle = "$pendingCount waiting upload"
 
-        val progress = if (!isPaused) "Running" else "Paused"
-        val title = "YouTube Upload"
-        val cancel = "cancel"
-        val resume = "resume"
-        val pause = "pause"
-
-        if (notificationId == 0) {
-            notificationId = context.resources.getInteger(R.integer.notification_id_upload_progress)
+            val notificationBuilder =
+                NotificationCompat.Builder(applicationContext, notificationChannelId ?: "")
+                    .setContentTitle(summaryTitle)
+                    .setTicker(summaryTitle)
+                    .setSmallIcon(R.drawable.ic_baseline_publish_24)
+                    .setOngoing(true)
+                    .addAction(android.R.drawable.ic_delete, cancel, cancelIntent)
+                    .setStyle(inboxStyle)
+                    .setGroup(group)
+                    .setGroupSummary(true)
+            notificationManager.notify(pendingNotificationId, notificationBuilder.build())
+            notificationIds.add(pendingNotificationId)
         }
 
-        val notificationBuilder = NotificationCompat.Builder(applicationContext, notificationChannelId ?: "")
-            .setContentTitle(title)
-            .setTicker(title)
-            .setContentText(progress)
-            .setSmallIcon(R.drawable.ic_baseline_publish_24)
-            .setOngoing(true)
-            .setProgress(100, this.progress.toInt(), true)
-            .addAction(android.R.drawable.ic_delete, cancel, cancelIntent)
+        val progress = this.progress.toInt()
+        val indeterminate = this.progress > 100
+        val title = "Uploading " + queue[uploadingId]
+        val resume = "resume"
+        val pause = "pause"
+        
+
+        val notificationBuilder =
+            NotificationCompat.Builder(applicationContext, notificationChannelId ?: "")
+                .setContentTitle(title)
+                .setTicker(title)
+                .setContentInfo("$progress%")
+                .setSubText("$progress%")
+                .setSmallIcon(R.drawable.ic_baseline_publish_24)
+                .setOngoing(true)
+                .setProgress(100, progress, indeterminate)
+                .addAction(android.R.drawable.ic_delete, cancel, cancelIntent)
 
         val intentAction = Intent(context, PauseResumeReceiver::class.java)
+
         @SuppressLint("UnspecifiedImmutableFlag")
-        val pendingIntent = PendingIntent.getBroadcast(context, 1, intentAction, PendingIntent.FLAG_UPDATE_CURRENT)
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            1,
+            intentAction,
+            PendingIntent.FLAG_UPDATE_CURRENT
+        )
 
         if (isPaused) {
             Log.i("WORKER", "Is paused when creating notification, adding resume button")
-            notificationBuilder.addAction(R.drawable.ic_baseline_publish_24, resume, pendingIntent)
+            notificationBuilder.addAction(
+                R.drawable.ic_baseline_publish_24,
+                resume,
+                pendingIntent
+            )
         } else {
             Log.i("WORKER", "Is running when creating notification, adding pause button")
             notificationBuilder.addAction(R.drawable.pause, pause, pendingIntent)
         }
 
         val notification = notificationBuilder.build()
+
         setForeground(ForegroundInfo(notificationId, notification))
+        notificationIds.add(notificationId)
         Log.i("WORKER", "Set notification to foreground")
     }
-
 }
+
 class PauseResumeReceiver: BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
         if (Upload.INSTANCE == null) {

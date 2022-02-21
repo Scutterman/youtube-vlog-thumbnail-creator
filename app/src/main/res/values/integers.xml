@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <integer name="notification_id_upload_progress">1000</integer>
+    <integer name="notification_id_upload_pending">2000</integer>
+</resources>
